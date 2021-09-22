@@ -20,6 +20,10 @@ from apps.core.files.storage import get_storage
 from apps.node_man.models import AccessPoint
 from apps.utils import files
 
+from . import utils
+
+log_and_print = utils.get_log_and_print("copy_file_to_nginx(storage)")
+
 
 def copy_dir_files_to_storage(
     source_dir_path: str, target_dir_paths: Iterable[str], ignored_dir_names: Optional[List[str]] = None
@@ -31,6 +35,12 @@ def copy_dir_files_to_storage(
     :param ignored_dir_names: 忽略的目录名称
     :return:
     """
+
+    log_and_print(
+        f"source_dir_path -> {source_dir_path} \n target_dir_path -> {target_dir_paths} \n "
+        f"ignored_dir_names -> {ignored_dir_names}"
+    )
+
     storage = get_storage(file_overwrite=True)
     source_file_paths = files.fetch_file_paths_from_dir(dir_path=source_dir_path, ignored_dir_names=ignored_dir_names)
 
@@ -49,10 +59,22 @@ class Command(BaseCommand):
         """
         拷贝scripts下的文件到nginx download下
         """
+
+        if not settings.BK_BACKEND_CONFIG:
+            log_and_print("command only work on settings.BK_BACKEND_CONFIG == True")
+            return
+
+        log_and_print(f"STORAGE_TYPE -> {settings.STORAGE_TYPE}")
+
         # 接入点配置的nginx路径
-        nginx_paths = {ap.nginx_path for ap in AccessPoint.objects.all() if ap.nginx_path}
+        target_dir_paths = {ap.nginx_path for ap in AccessPoint.objects.all() if ap.nginx_path}
         # 默认nginx路径
-        nginx_paths.add(settings.DOWNLOAD_PATH)
+        target_dir_paths.add(settings.DOWNLOAD_PATH)
+
         copy_dir_files_to_storage(
-            source_dir_path=settings.BK_SCRIPTS_PATH, target_dir_paths=nginx_paths, ignored_dir_names=["__pycache__"]
+            source_dir_path=settings.BK_SCRIPTS_PATH,
+            target_dir_paths=target_dir_paths,
+            ignored_dir_names=["__pycache__"],
         )
+
+        log_and_print("success.")
