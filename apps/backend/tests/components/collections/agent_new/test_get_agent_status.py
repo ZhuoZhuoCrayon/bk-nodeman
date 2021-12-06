@@ -33,6 +33,9 @@ gse_v2_mock_path: AnyStr = "apps.backend.components.collections.agent_new.get_ag
 
 
 class GetAgentStatusTestCase(utils.AgentServiceBaseTestCase):
+
+    DEBUG = True
+
     def init_mock_client(self):
         self.gse_mock_client = api_mkd.gse.unit.GseMockClient(
             get_agent_status_return=common_unit.gse.GET_AGENT_STATUS_DATA,
