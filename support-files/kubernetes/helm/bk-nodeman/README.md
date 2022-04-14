@@ -272,11 +272,11 @@ externalRabbitMQ:
 
 用于生成运行环境变量，具体参考：`support-files/kubernetes/helm/bk-nodeman/templates/configmaps/env-configmap.yaml`
 
-| 参数                                  | 描述                                                         | 默认值                         |
-| ------------------------------------- | ------------------------------------------------------------ | ------------------------------ |
+| 参数                                  | 描述                                                         | 默认值                            |
+| ------------------------------------- | ------------------------------------------------------------ |--------------------------------|
 | `config.appCode`                      | app code                                                     | `bk_nodeman`                   |
 | `config.appSecret`                    | app secret                                                   | `""`                           |
-| `config.bkAppRunEnv`                  | 运行环境，ce / ee / ieod，影响 gse 端口等配置                | `ee`                           |
+| `config.bkAppRunEnv`                  | 运行环境，ce / ee / ieod，影响 gse 端口等配置                | `ce`                           |
 | `config.bkPaasMajorVersion`           | 开发框架 PaaS 版本适配，目前仅支持 `3`                       | `3`                            |
 | `config.bkPaaSEnvironment`            | 开发框架 PaaS 环境适配，目前仅支持 `prod`                    | `prod`                         |
 | `config.logType`                      | 日志类别，`DEFAULT`-   `STDOUT`                              | `STDOUT`                       |
@@ -397,7 +397,6 @@ bkRepoUrl: "http://bkrepo.example.com"
 config:
   appCode: "bk_nodeman"
   appSecret: "xxxxx"
-  bkAppRunEnv: "ce"
   bkNodemanApiUrl: "http://bk-nodeman-backend-api:10300"
   bkRepoProject: "xxxx"
   bkRepoPassword: "xxxx"

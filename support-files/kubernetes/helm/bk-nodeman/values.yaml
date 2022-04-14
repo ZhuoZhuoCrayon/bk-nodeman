@@ -137,7 +137,7 @@ images:
 
   nginx:
     registry: "docker.io"
-    repository: "nginx"
+    repository: "library/nginx"
     pullPolicy: "IfNotPresent"
     tag: "1.20.2"
 
