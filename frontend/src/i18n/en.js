@@ -338,6 +338,9 @@ export default {
   节点IP: 'Node IP',
   上游节点: 'Upstream node',
   上游节点信息: 'Upstream node information',
+  高级选项: 'Advanced options',
+  通道上游节点: 'Upstream node of the channel',
+  通道上游节点tips: 'In a complex network architecture, you need to specify the upstream agent address of the installation channel itself, which is used to report P-Agent logs and other information to the node management background',
 
   // agent管理 - 自动发现
   待处理: 'Pending',
@@ -848,8 +851,8 @@ export default {
   删除策略成功: 'Delete strategy successfully',
   当前没有可操作的主机: 'There is currently no operable host',
   关联主机数: 'Hosts',
-  将插件注册到GSEAgent管理当插件异常退出时可尝试进行自动拉起: 'The plug-in will be registered in the GSE Agent management, when the plug-in abnormal exit can try to automatically pull up',
-  取消插件的GSEAgent管理当插件异常退出时将不再被自动拉起: 'The GSE Agent management of the plugin is cancelled, and it will no longer be automatically pulled up when the plugin exits unexpectedly',
+  托管插件Tips: 'Plugins started in node management are hosted by default. If the plugin is manually pulled up, the hosting operation can be performed separately',
+  停用托管插件Tips: 'Plugins stopped in node management are unmanaged by default. If you want to unhost while keeping the plugin running, you can perform the unhost operation separately',
   搜索IP云区域操作系统Agent状态: 'Search IP, cloud region, operating system, Agent status',
   停用策略Tips: 'Disabling the strategy will remove the installed plug-ins from the strategy control',
   目标版本: 'Target version',
@@ -1003,6 +1006,7 @@ export default {
 
   // form-check
   正常输入内容校验: 'Chinese and English, numbers, hyphens and underscores with a length not exceeding {0}',
+  字符串长度校验: 'The length cannot be greater than {0} Chinese or {1} English letters',
   不小于零的整数: 'An integer not less than zero',
   Linux路径格式错误: 'Start with /, contain at least level {minLevel} directories, and be uppercase and lowercase English, numbers, and underscores with a length not exceeding {maxText}',
   windows路径格式错误: 'Start with [c-fC-F]:\\, contain at least {minLevel} levels of directories, and be uppercase and lowercase English, numbers, and underscores up to {maxText} in length',

@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import random
 import time
 from collections import Counter, defaultdict
@@ -19,10 +18,12 @@ from django.utils import timezone
 
 from apps.exceptions import ComponentCallError
 from apps.node_man import constants as const
+from apps.node_man import tools
 from apps.node_man.handlers.ap import APHandler
 from apps.node_man.handlers.cloud import CloudHandler
 from apps.node_man.handlers.cmdb import CmdbHandler
 from apps.node_man.handlers.host import HostHandler
+from apps.node_man.handlers.iam import IamHandler
 from apps.node_man.models import (
     AccessPoint,
     Cloud,
@@ -32,73 +33,11 @@ from apps.node_man.models import (
     Job,
     ProcessStatus,
 )
-from apps.utils.basic import filter_values
+from apps.utils.basic import filter_values, get_chr_seq
 
 CONST_IP_LEN = 2234
 IP_REG = r"((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})(\.((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})){3}"
-DIGITS = [
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "q",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
-    "A",
-    "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-    "O",
-    "P",
-    "W",
-    "R",
-    "S",
-    "T",
-    "U",
-    "V",
-    "W",
-    "X",
-    "Y",
-    "Z",
-]
+DIGITS = get_chr_seq("0", "9") + get_chr_seq("a", "z") + get_chr_seq("A", "Z")
 SEARCH_BUSINESS = [
     {"bk_biz_id": 27, "bk_biz_name": "12"},
     {"bk_biz_id": 28, "bk_biz_name": "t2"},
@@ -114,6 +53,7 @@ SEARCH_BUSINESS = [
     {"bk_biz_id": 38, "bk_biz_name": "t8"},
     {"bk_biz_id": 39, "bk_biz_name": "t9"},
 ]
+TOPO_ORDER = ["biz", "syy2", "syy1", "set", "module", "host", "test"]
 
 
 def create_host_from_a_to_b(
@@ -243,6 +183,8 @@ def create_host(
 
 class Subscription:
     def create_subscription(self, job_type, nodes):
+
+        rsa_util = tools.HostTools.get_rsa_util()
         subscription_id = random.randint(100, 1000)
         task_id = random.randint(10, 1000)
         if job_type in ["REINSTALL_AGENT", "REINSTALL_PROXY", "RESTART_PROXY", "RESTART_AGENT"]:
@@ -275,9 +217,13 @@ class Subscription:
                 defaults={
                     "auth_type": host_info.get("auth_type"),
                     "account": host_info.get("account"),
-                    "password": base64.b64decode(host_info.get("password", "")).decode(),
+                    "password": tools.HostTools.decrypt_with_friendly_exc_handle(
+                        rsa_util=rsa_util, encrypt_message=host_info["password"], raise_exec=Exception
+                    ),
                     "port": host_info.get("port"),
-                    "key": base64.b64decode(host_info.get("key", "")).decode(),
+                    "key": tools.HostTools.decrypt_with_friendly_exc_handle(
+                        rsa_util=rsa_util, encrypt_message=host_info["key"], raise_exec=Exception
+                    ),
                     "retention": host_info.get("retention", 1),
                     "extra_data": host_info.get("extra_data"),
                     "updated_at": timezone.now(),
@@ -290,12 +236,30 @@ class Subscription:
         return {"subscription_id": subscription_id, "task_id": task_id}
 
 
+class GseApi:
+    @staticmethod
+    def get_agent_status(*args, **kwargs):
+        return {"bk_host_id": 1, "agent_status": "RUNNING"}
+
+
+class JobApi:
+    @staticmethod
+    def fast_execute_script(*args, **kwargs):
+        job_id = random.randint(100, 1000)
+        return {"job_id": job_id, "args": args, "kwargs": kwargs}
+
+    @staticmethod
+    def get_job_instance_log(*args, **kwargs):
+        job_id = random.randint(100, 1000)
+        return [{"job_id": job_id, "args": args, "kwargs": kwargs}]
+
+
 class NodeApi:
     @staticmethod
     def create_subscription(param):
         subscription_id = random.randint(100, 1000)
         task_id = random.randint(10, 1000)
-        return {"subscription_id": subscription_id, "task_id": task_id}
+        return {"subscription_id": subscription_id, "task_id": task_id, "param": param}
 
     @staticmethod
     def retry_subscription_task(param):
@@ -461,7 +425,7 @@ class NodeApi:
 
     @staticmethod
     def run_subscription_task(param):
-        return {"subscription_id": 1, "task_id": 1}
+        return {"subscription_id": 1, "task_id": 1, "param": param}
 
     @staticmethod
     def plugin_retrieve(param):
@@ -533,6 +497,10 @@ class NodeApi:
     @staticmethod
     def metric_list():
         return []
+
+    @staticmethod
+    def plugin_info(*args, **kwargs):
+        return {}
 
 
 def create_cloud_area(number, creator="admin", begin=1):
@@ -631,6 +599,7 @@ def create_ap(number):
                     "taskserver": [{"inner_ip": random_ip(), "outer_ip": random_ip()}],
                     "package_inner_url": "http://127.0.0.1:80/download",
                     "package_outer_url": "http://127.0.0.1:80/download",
+                    "nginx_path": "/data/bkee/public/bknodeman/download",
                     "agent_config": {
                         "linux": {
                             "setup_path": "/usr/local/gse",
@@ -1098,6 +1067,62 @@ class MockClient(object):
                 return {"bk_set_id": 10, "module": None, "bk_set_name": "空闲机池"}
             else:
                 raise ComponentCallError
+
+        @classmethod
+        def get_host_by_topo_node(cls, bk_biz_id, *args, **kwargs):
+            if bk_biz_id == 0:
+                raise ComponentCallError
+            return []
+
+
+class MockIAM(object):
+    def __init__(self, app_code, secret_key, bk_iam_inner_host, bk_component_api_url):
+        self.app_code = app_code
+        self.secret_key = secret_key
+        self.bk_iam_inner_host = bk_iam_inner_host
+        self.bk_component_api_url = bk_component_api_url
+
+    class _client:
+        @staticmethod
+        def policy_query(request_data):
+            """
+            根据测试角色类型来返回不同的权限数据
+            """
+            user = request_data["subject"]["id"]
+            instance_type, action_type, *args = request_data["action"]["id"].split("_")
+            instance_type = IamHandler.get_instance_type(instance_type, action_type)
+
+            if user == "creator":
+                # 构造创建者的数据情况
+                condition = {"field": f"{instance_type}.iam_resource_owner", "op": "eq", "value": user}
+            elif user.startswith("normal"):
+                # 构建普通角色的数据情况
+                op = user.split("_")[1]
+                if op == "any" and action_type == "view":
+                    condition = {"field": f"{instance_type}.id", "op": op, "value": []}
+                else:
+                    user_value_map = {"eq": 1, "in": [1, 2], "null": []}
+                    op = "null" if op == "any" else op
+                    condition = {"field": f"{instance_type}.id", "op": op, "value": user_value_map[op]}
+            else:
+                # 模拟未注册或者不合法用户
+                condition = {}
+
+            code, message, data = (1, "ok", condition)
+            return code, message, data
+
+        @staticmethod
+        def get_apply_url(bk_token, bk_username, data):
+            related_resource_types = data["actions"][0].get("related_resource_types")
+            if not related_resource_types:
+                # 生成不带资源实例的url
+                url = "127.0.0.1/without_resource"
+            else:
+                # 生成带资源实例的url
+                url = "127.0.0.1/with_resource"
+
+            code, message, data = (1, "ok", url)
+            return code, message, data
 
 
 @patch("apps.node_man.handlers.cmdb.CmdbHandler.cmdb_or_cache_biz", cmdb_or_cache_biz)

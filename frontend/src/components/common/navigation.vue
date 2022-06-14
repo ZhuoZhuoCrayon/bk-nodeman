@@ -96,7 +96,7 @@
         </div>
       </template>
     </bk-navigation>
-    <log-version :dialog-show.sync="showLog"></log-version>
+    <log-version v-model="showLog"></log-version>
   </article>
 </template>
 <script lang="ts">
@@ -280,7 +280,8 @@ export default class NodemanNavigation extends Mixins(routerBackMixin) {
       if (NODE_ENV === 'development') {
         window.location.href = LOGIN_DEV_URL + window.location.href;
       } else {
-        window.location.href = `${window.PROJECT_CONFIG.BK_PAAS_HOST}/console/accounts/logout/`;
+        // window.location.href = `${window.PROJECT_CONFIG.BK_PAAS_HOST}/console/accounts/logout/`;
+        window.location.href = `${window.PROJECT_CONFIG.LOGIN_URL}?&c_url=${window.location}`;
       }
     }
   }

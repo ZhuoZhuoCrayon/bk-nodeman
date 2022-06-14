@@ -24,6 +24,7 @@
       :check-value="checkValue"
       :check-type="checkType"
       :running-count="runningCount"
+      :plugin-names="mixisPluginName"
       @selection-change="handleSelectionChange"
       @row-check="handleRowCheck"
       @filter-confirm="tableHeaderConfirm"
@@ -32,7 +33,7 @@
       @pagination-change="handlePaginationChange">
     </PluginListTable>
     <bk-dialog
-      :width="isZh ? 600 : 630"
+      :width="isZh ? 620 : 728"
       header-position="left"
       ext-cls="operate-dialog"
       :mask-close="false"
@@ -40,30 +41,51 @@
       :title="dialogInfo.title"
       @cancel="handleDialogCancel">
       <template #default>
-        <bk-form v-test="'operateForm'" :label-width="isZh ? 90 : 128">
-          <bk-form-item :label="$t('操作范围')">
-            <i18n path="已选择插件">
-              <b class="num">{{ operateNum }}</b>
-            </i18n>
-          </bk-form-item>
+        <bk-form form-type="vertical" v-test="'operateForm'">
+          <div class="bk-form-item" style="display: flex;">
+            <label class="bk-label">
+              <span class="bk-label-text">{{ $t('操作范围') }}</span>
+            </label>
+            <div class="bk-form-content">
+              <i18n path="已选择插件">
+                <b class="num">{{ operateNum }}</b>
+              </i18n>
+            </div>
+          </div>
           <bk-form-item :label="$t('插件操作')" required>
             <div :class="['bk-button-group', { 'is-zh': isZh }]">
               <bk-button
                 v-for="item in pluginOperateList"
                 :key="item.id"
                 v-test="item.id"
-                ext-cls="btn-item"
-                :class="dialogInfo.operate === item.id ? 'is-selected' : ''"
-                v-bk-tooltips="{
-                  content: item.tips,
-                  disabled: !item.tips
-                }"
+                :class="['btn-item', { 'is-selected': dialogInfo.operate === item.id }]"
                 @click="dialogInfo.operate = item.id">
                 {{ item.name }}
               </bk-button>
+              <bk-dropdown-menu
+                ref="moreRef"
+                :ext-cls="['btn-item bk-button p0', isMoreSelected ? 'is-selected' : '']"
+                position-fixed
+                @show="showMore = true"
+                @hide="showMore = false">
+                <div class="flex-center dropdown-icon-absolute" slot="dropdown-trigger">
+                  <span>{{ isMoreSelected ? isMoreSelected.name : $t('更多') }}</span>
+                  <i :class="['bk-icon icon-angle-down',{ 'icon-flip': showMore }]"></i>
+                </div>
+                <ul class="bk-dropdown-list" style="white-space: pre-wrap;" slot="dropdown-content">
+                  <li v-for="item in pluginOperateMore" :key="item.id" v-bk-tooltips="{
+                    content: item.tips,
+                    placements: ['left'],
+                    width: 300,
+                    boundary: 'window'
+                  }">
+                    <a href="javascript:;" @click="handleDropdownClick(item.id)">{{ item.name }}</a>
+                  </li>
+                </ul>
+              </bk-dropdown-menu>
             </div>
           </bk-form-item>
-          <bk-form-item :label="$t('选择插件')" required>
+          <bk-form-item :label="$t('选择插件')" required style="z-index: 0;">
             <bk-select
               v-test="'pluginName'"
               ext-cls="plugin-select"
@@ -96,7 +118,7 @@
   </article>
 </template>
 <script lang="ts">
-import { Component, Watch, Mixins, Prop } from 'vue-property-decorator';
+import { Component, Watch, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { PluginStore, MainStore } from '@/store';
 import PluginListOperate from './plugin-list-operate.vue';
 import PluginListTable from './plugin-list-table.vue';
@@ -124,6 +146,8 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
   @Prop({ type: String, default: '' }) private readonly  osType!: string;
   @Prop({ type: String, default: '' }) private readonly  pluginName!: string;
 
+  @Ref('moreRef') private readonly moreRef!: any;
+
   private loading = false;
   private tableLoading = false;
   private selectionLoading = false;
@@ -140,11 +164,6 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
   private runningCount = 0;
   private checkValue: CheckValueEnum = 0;
   private hasOldRouteParams = false;
-  private osMap = {
-    LINUX: 'Linux',
-    WINDOWS: 'Windows',
-    AIX: 'AIX',
-  };
   private strategyValue: Array<number | string> = []; // 插件id number， 策略名称 string
   private sortData: ISortData = {
     head: '',
@@ -163,19 +182,22 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
     { id: 'MAIN_STOP_PLUGIN', name: window.i18n.t('停止') },
     { id: 'MAIN_RESTART_PLUGIN', name: window.i18n.t('重启') },
     { id: 'MAIN_RELOAD_PLUGIN', name: window.i18n.t('重载') },
+  ];
+  private pluginOperateMore = [
     {
       id: 'MAIN_DELEGATE_PLUGIN',
       name: window.i18n.t('托管'),
-      tips: window.i18n.t('将插件注册到GSEAgent管理当插件异常退出时可尝试进行自动拉起'),
+      tips: window.i18n.t('托管插件Tips'),
     },
     {
       id: 'MAIN_UNDELEGATE_PLUGIN',
       name: window.i18n.t('取消托管'),
-      tips: window.i18n.t('取消插件的GSEAgent管理当插件异常退出时将不再被自动拉起'),
+      tips: window.i18n.t('停用托管插件Tips'),
     },
   ];
   private mixisPluginName: string[] = []; // 插件的状态和版本筛选条件组合到了一起
   private pluginStatusMap: { [key: string]: string[] } = {}; // 插件的状态列表
+  private showMore = false;
 
   private get selectedAllDisabled() {
     const statusCondition = this.searchSelectValue.find(item => item.id === 'status');
@@ -189,6 +211,9 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
   }
   private get isZh() {
     return MainStore.language === 'zh';
+  }
+  private get isMoreSelected() {
+    return this.pluginOperateMore.find(item => item.id === this.dialogInfo.operate);
   }
 
   @Watch('searchSelectValue', { deep: true })
@@ -236,9 +261,11 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
   // 拉取筛选条件 并 插入插件名称项
   public async getFilterData() {
     const [
-      list,
+      data,
       { list: data2 },
     ] = await Promise.all([PluginStore.getFilterList(), PluginStore.pluginPkgList({ simple_all: true })]);
+    this.mixisPluginName = data.filter(item => item.children && !item.children.length).map(item => item.id);
+    const list = data.filter(item => !item.children || item.children.length);
     if (data2.length) {
       const pluginName = this.pluginName || this.$route.params.pluginName;
       const pluginItem = {
@@ -285,6 +312,7 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
       }
     }
     this.filterData.splice(0, 0, ...list);
+    return Promise.resolve(true);
   }
   public async getPluginFilter() {
     await PluginStore.getFilterList({ category: 'plugin_version' }).then((data) => {
@@ -301,7 +329,6 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
           }
         }
       });
-      this.mixisPluginName = statusName;
       this.filterData.splice(this.filterData.length, 0, ...data.filter(item => !statusReg.test(item.id)));
     });
   }
@@ -311,6 +338,7 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
     const { list, total } = data;
     this.tableList = list;
     this.pagination.count = total;
+    return Promise.resolve(true);
   }
 
   // 获取请求参数
@@ -575,10 +603,28 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
     }
     return false;
   }
+  public handleDropdownClick(id: string) {
+    this.dialogInfo.operate = id;
+    this.moreRef?.hide();
+  }
 }
 
 </script>
 <style lang="postcss" scoped>
+  .flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dropdown-icon-absolute {
+    position: relative;
+    font-size: 14px;
+    .bk-icon {
+      position: absolute;
+      right: 0px;
+      top: 7px;
+    }
+  }
   .plugin-node .plugin-node-table {
     margin-top: 14px;
   }
@@ -599,7 +645,7 @@ export default class PluginList extends Mixins(HeaderFilterMixins) {
         }
       }
       &.is-zh .btn-item {
-        width: 93px;
+        width: 96px;
       }
     }
     .bk-form-item:last-child {

@@ -179,13 +179,26 @@ is_port_listen () {
 # 利用linux内核/proc/<pid>/net/tcp文件中第四列0A表示LISTEN
 # 第二列16进制表达的ip和port
 is_port_listen_by_pid () {
-    local pid regex
+    local pid regex stime
     pid=$1
     shift 1
 
+    if [ `wc -l /proc/net/tcp |awk '{print $1}'` -le 5000 ];then
+        stime=1
+    else
+        stime=0
+    fi
+
     for i in {0..10}; do
+        echo ------ $i  `date '+%c'`
         sleep 1
         for port in "$@"; do
+            if [ $stime -eq 1 ];then
+                echo need to sleep 1s
+                sleep 1
+            fi
+
+            echo ------ $port  `date '+%c'`
             stat -L -c %i /proc/"$pid"/fd/* 2>/dev/null \
                 | grep -qwFf - \
                     <( awk -v p="$port" 'BEGIN{ check=sprintf(":%04X0A$", p)} $2$4 ~ check {print $10}' /proc/net/tcp) \
@@ -436,7 +449,13 @@ stop_agent () {
     "$AGENT_SETUP_PATH/bin/gsectl" stop
 
     for i in {1..10}; do
-        read -r -a pids <<< "$(pidof "$AGENT_SETUP_PATH"/bin/gse_agent)"
+        for pid in $(pidof "${AGENT_SETUP_PATH}"/bin/gse_agent); do
+          # 富容器场景下，会误杀docker里的agent进程，因此需要判断父进程ID是否为1，仅干掉这些进程
+          if [[ $(ps  --no-header -o ppid -p $pid) -eq 1 ]]; then
+             pids=($pid $(pgrep -P $pid))
+             break
+          fi
+        done
         if [[ ${#pids[@]} -eq 0 ]]; then
             log remove_agent SUCCESS 'old agent has been stopped successfully'
             break
@@ -453,7 +472,9 @@ remove_agent () {
     stop_agent
 
     log remove_agent - "trying to remove old agent directory(${AGENT_SETUP_PATH})"
-    chattr -i -R "${AGENT_SETUP_PATH}" > /dev/null 2>&1
+    cd "${AGENT_SETUP_PATH}"
+    for file in `lsattr -R |egrep "i-" |awk '{print $NF}'`;do echo "--- $file" && chattr -i $file ;done
+    cd -
     rm -rf "${AGENT_SETUP_PATH}"
 
     if [[ "$REMOVE" == "TRUE" ]]; then
@@ -486,7 +507,7 @@ _OO_
         rm -f "$tmp_json_body" "$tmp_json_resp"
 
         if [[ "$http_status" != "200" ]]; then
-            fail get_config FAILED "request config $filename failed. request info:$CLOUD_ID,$LAN_ETH_IP,$NODE_TYPE,$filename,$TOKEN. http status:$http_status"
+            fail get_config FAILED "request config $filename failed. request info:$CLOUD_ID,$LAN_ETH_IP,$NODE_TYPE,$filename,$TOKEN. http status:$http_status, file content: $(cat "$TMP_DIR/$filename")"
         fi
     done
 }

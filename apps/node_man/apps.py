@@ -70,7 +70,7 @@ class ApiConfig(AppConfig):
                 settings.APIGW_PUBLIC_KEY = api_public_key
                 # 获取到公钥之后回写数据库
                 GlobalSettings.objects.update_or_create(
-                    key=GlobalSettings.KeyEnum.APIGW_PUBLIC_KEY,
+                    key=GlobalSettings.KeyEnum.APIGW_PUBLIC_KEY.value,
                     defaults={"v_json": api_public_key},
                 )
                 logger.info("[ESB][JWT]get esb api public key success (from realtime api)")
@@ -97,3 +97,16 @@ class ApiConfig(AppConfig):
             key=GlobalSettings.KeyEnum.CONFIG_POLICY_BY_TENCENT_VPC.value, defaults=dict(v_json=False)
         )
         settings.CONFIG_POLICY_BY_TENCENT_VPC = obj.v_json
+
+        obj, created = GlobalSettings.objects.get_or_create(
+            key=GlobalSettings.KeyEnum.HEAD_PLUGINS.value,
+            defaults=dict(
+                v_json=["basereport", "exceptionbeat", "processbeat", "bkunifylogbeat", "bkmonitorbeat", "gsecmdline"]
+            ),
+        )
+        settings.HEAD_PLUGINS = obj.v_json
+
+        obj, created = GlobalSettings.objects.get_or_create(
+            key=GlobalSettings.KeyEnum.REGISTER_WIN_SERVICE_WITH_PASS.value, defaults=dict(v_json=False)
+        )
+        settings.REGISTER_WIN_SERVICE_WITH_PASS = obj.v_json

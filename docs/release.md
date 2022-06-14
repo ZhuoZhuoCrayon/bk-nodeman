@@ -1,5 +1,197 @@
 # Release
 
+## 2.1.365 - 2022-01-19 
+
+
+### bugfix: 
+  * redis sentinel 连接死循环(fixed #427)
+
+### feature: 
+  * 去掉 agent、proxy 的「移除」入口(close #436)
+  * 插件操作入口优化(close #434)
+
+### optimization: 
+  * Agent升级去除目录保护(close #428)
+
+## 2.1.364 - 2022-01-11 
+
+
+### feature: 
+  * 补充周期任务的单元测试 (close #391)
+  * gent 管理页面支持在 url 中进行条件过滤 (fixed #405)
+  * 异步接口超时复制IP失败优化 (close #404)
+
+### optimization: 
+  * 周期任务削峰打散度不足 (close #400)
+  * 安装脚本优化(close #415)
+
+### bugfix: 
+  * 修复 PyNaCl 依赖安装报错的问题 (fixed #422)
+
+## 2.1.363 - 2021-12-24 
+
+
+### optimization: 
+  * windows脚本兼容性优化 (fixed #397)
+
+## 2.1.362 - 2021-12-24 
+
+
+### optimization: 
+  * 忽略无效拓扑节点 (close #191)
+  * 重装 Agent Windows 登录端口自动更正 (close #363)
+  * Agent 安装弹出参数校验失败列 (close #376)
+
+### bugfix: 
+  * 安装通道服务器文件同步
+  * 跨页全选情况下安装通道没有默认值 (close #377)
+  * 富容器场景Agent安装脚本问题修复 (fixed #384)
+  * windows安装上报系统架构错误 (fixed #394)
+  * Firefox 浏览器粘贴 IP 解析错误 (close #378)
+
+### feature: 
+  * 周期任务同步进程状态 (close #380)
+
+## 2.1.361 - 2021-12-17 
+
+
+### bugfix: 
+  * P-Agent无法连接外网时，安装失败的问题 (fixed #354)
+  * 使用私钥安装P-Agent时，校验key失败的问题 (fixed #365)
+
+## 2.1.360 - 2021-12-16 
+
+
+### bugfix: 
+  * 使用私钥安装P-Agent时，校验key失败的问题 (fixed #365)
+  * P-Agent无法连接外网时，安装失败的问题 (fixed #354)
+  * 任务历史详情左侧IP列表分页异常 (fixed #349)
+  * 编辑proxy密码报错系统错误 (fixed #355)
+  * 表格锁边及滚动问题 (fixed #364)
+  * 修复windows插件卸载失败的问题 (fixed #366)
+  * 插件配置版本匹配不符合预期的问题 (fixed #357)
+
+## 2.1.359 - 2021-12-14 
+
+
+## 2.1.358 - 2021-12-14 
+
+
+### optimization: 
+  * 任务日志 优化error、debug类型展示 (close #333)
+  * 下发插件匹配不到插件包时报错粒度优化 (close #250)
+
+### feature: 
+  * 新增CMDB进程实例监听，优化周期任务 (close #329)
+
+### bugfix: 
+  * 节点列表页面加载异常 (fixed #334)
+  * 修复插件操作选择部署版本时报错无权限的问题 (closed #346)
+
+## 2.1.357 - 2021-12-09 
+
+
+### bugfix: 
+  * 修复后台管理页面显示异常的问题 (fixed #330)
+
+## 2.1.356 - 2021-12-08 
+
+
+### optimization: 
+  * 升级 Django3 (closed #111)
+
+### feature: 
+  * 敏感信息传输加密 (closed #226)
+  * PaaS容器部署适配 (closed #10)
+  * 灰度策略支持自定义输入多IP (closed #235)
+  * 服务器文件迁移到存储源执行命令 (closed #260)
+  * 更新Proxy文件兼容制品库 (close #181)
+  * 展示自开插件的状态 (close #95)
+  * 通过接口获得操作系统类型 (closed #230)
+  * Windows Agent安装支持用administrator用户注册服务(close #277)
+  * 新增安装通道上游配置项，适配更复杂网络场景 (closed #234)
+
+### bugfix: 
+  * 手动安装window机器补充curl.exe下载链接 (closed #321)
+  * 修复访问后台接口出现 JWT 校验异常的问题 (fixed #323)
+
+## 2.1.355 - 2021-11-04 
+
+
+### bugfix: 
+  * gse agent 缺少 dbgipc 配置项(close #244)
+  * 手动安装p-agent,windows服务器失败(close #233)
+  * 修复本地存储保存文件与源文件不一致的问题 (fixed #254)
+  * 修复查询主机插件操作流水异常的问题 (fixed #252)
+
+### optimization: 
+  * 优化、统一用户退出操作  (closed #220)
+  * workflow 优化 (#121)
+  * 前端 api module 代码生成规范改进(closed #228)
+
+### feature: 
+  * 新增安装通道上游配置项，适配更复杂网络场景(close #234)
+
+### docs: 
+  * 安装通道多级代理nginx配置补充(closed #227)
+
+## 2.1.354 - 2021-11-04 
+
+### bugfix: 
+  * gse agent 缺少 dbgipc 配置项(close #244)
+  * 手动安装p-agent,windows服务器失败(close #233)
+### optimization: 
+  * 优化、统一用户退出操作  (closed #220)
+  * workflow 优化 (#121)
+  * 前端 api module 代码生成规范改进(closed #228)
+### feature: 
+  * 新增安装通道上游配置项，适配更复杂网络场景(close #234)
+### docs: 
+  * 安装通道多级代理nginx配置补充(closed #227)
+
+## 2.1.353
+
+- optimization
+  - 统一'gsectl.bat'安装脚本的来源为gse对应的安装包 (closed #205)
+
+## 2.1.353
+
+- optimization
+  - 统一'gsectl.bat'安装脚本的来源为gse对应的安装包 (closed #205)
+
+## 2.1.352
+
+- optimization
+  - 添加DB重连机制 (close #211)
+  - 2.0to2.1 升级脚本中虚拟环境的路径应取决于全局变量 (closed #207)
+- bugfix
+  - 修复移除主机后部署策略巡检执行异常的问题 (fixed #206)
+  - windows的agent配置中pluginipc应该为47200 (fixed #210)
+- feature
+  - pre-commit 自动生成dev_log(closed #209)
+- optmization
+  - 安装agent时，获取配置文件失败时安装流程主动终止 (close #195)
+
+## 2.1.351
+
+- optimization
+  - 策略名称移除仅包含汉字英文数字下划线的限制 (closed #198)
+- bugfix
+  - 修复Proxy安装脚本二进制路径错误的问题 (fixed #200)
+
+## 2.1.351
+
+- optimization
+  - 策略名称移除仅包含汉字英文数字下划线的限制 (closed #198)
+- bugfix
+  - 修复Proxy安装脚本二进制路径错误的问题 (fixed #200)
+
+## 2.1.350
+
+- optimization
+  - 周期任务削峰 (closed #182)
+  - CMDB list_hosts_without_biz 聚合查询 (closed #192)
+
 ## 2.1.349
 
 - bugfix

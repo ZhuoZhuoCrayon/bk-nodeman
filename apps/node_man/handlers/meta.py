@@ -9,15 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import re
+from typing import Tuple
 
 from django.conf import settings
 from django.db import connection
 from django.utils.translation import ugettext as _
-from apps.node_man.handlers.install_channel import InstallChannelHandler
 
 from apps.node_man import constants, models, tools
 from apps.node_man.handlers.cloud import CloudHandler
 from apps.node_man.handlers.cmdb import CmdbHandler
+from apps.node_man.handlers.install_channel import InstallChannelHandler
 from apps.utils import APIModel
 
 
@@ -145,7 +146,7 @@ class MetaHandler(APIModel):
             for index, item in enumerate(sublist):
                 col_map[index].add(item)
 
-        os_types_children = [{"name": constants.OS_CHN.get(os, os), "id": os} for os in os_types if os != ""]
+        os_types_children = self.fetch_os_type_children(tuple(os_types))
         statuses_children = [
             {"name": constants.PROC_STATUS_CHN.get(status, status), "id": status} for status in statuses if status != ""
         ]
@@ -265,7 +266,7 @@ class MetaHandler(APIModel):
         biz_permission = list(biz_id_name.keys())
 
         # 初始化各个条件集合
-        plugin_names = constants.HEAD_PLUGINS
+        plugin_names = settings.HEAD_PLUGINS
         plugin_result = {}
 
         # 获得数据
@@ -351,11 +352,10 @@ class MetaHandler(APIModel):
         os_dict = {"name": _("操作系统"), "id": "os_type", "children": []}
 
         for os_type in constants.OS_TUPLE:
-            if os_type == constants.OsType.AIX and settings.BKAPP_RUN_ENV == constants.BkappRunEnvType.CE.value:
+            special_os_type = [constants.OsType.AIX, constants.OsType.SOLARIS]
+            if os_type in special_os_type and settings.BKAPP_RUN_ENV == constants.BkappRunEnvType.CE.value:
                 continue
-            os_dict["children"].append(
-                {"id": os_type, "name": os_type if os_type == constants.OsType.AIX else os_type.capitalize()}
-            )
+            os_dict["children"].append({"id": os_type, "name": constants.OS_CHN.get(os_type, os_type)})
 
         ret_value.append(os_dict)
 
@@ -381,12 +381,23 @@ class MetaHandler(APIModel):
                 ],
             }
         )
+        ret_value.extend(
+            [
+                {
+                    "id": plugin_name,
+                    "name": plugin_name,
+                    # 数据量较大的情况下，children获取较慢，此处插件的children设置为空，由前端异步请求获取
+                    "children": [],
+                }
+                for plugin_name in settings.HEAD_PLUGINS
+            ]
+        )
 
-        return self.filter_empty_children(ret_value)
+        return ret_value
 
     @staticmethod
     def fetch_plugin_version_condition():
-        plugin_names = constants.HEAD_PLUGINS
+        plugin_names = settings.HEAD_PLUGINS
         versions = (
             models.ProcessStatus.objects.filter(
                 source_type=models.ProcessStatus.SourceType.DEFAULT,
@@ -436,6 +447,15 @@ class MetaHandler(APIModel):
 
         return plugin_result
 
+    @staticmethod
+    def fetch_os_type_children(os_types: Tuple = constants.OsType):
+        os_type_children = []
+        for os_type in os_types:
+            if os_type == "":
+                continue
+            os_type_children.append({"id": os_type, "name": constants.OS_CHN.get(os_type, os_type)})
+        return os_type_children
+
     def filter_condition(self, category):
         """
         获取过滤条件
@@ -458,6 +478,9 @@ class MetaHandler(APIModel):
             return ret
         elif category == "plugin_host":
             ret = self.fetch_plugin_host_condition()
+            return ret
+        elif category == "os_type":
+            ret = self.fetch_os_type_children()
             return ret
 
     def search(self, key):

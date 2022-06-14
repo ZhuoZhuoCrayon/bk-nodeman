@@ -55,6 +55,7 @@ INSTANCE_RECORD_ROOT_PIPELINE_ID = "98d467d07e453e1b9f24e77c8c6743fb"
 
 # 测试伪造ip
 TEST_IP = "127.0.0.1"
+CHANNEL_TEST_IP = "127.0.0.2"
 
 # Job作业实例id
 JOB_INSTANCE_ID = 10000
@@ -330,6 +331,17 @@ class JobMockClient:
         self.job.fast_push_file = MagicMock(return_value=fast_push_file_return)
         self.job.push_config_file = MagicMock(return_value=push_config_file_return)
         self.job.get_job_instance_status = MagicMock(return_value=get_job_instance_status_return)
+
+
+class JobDemandMock:
+    def __init__(self, poll_task_result_return=None):
+        self.poll_task_result = MagicMock(return_value=poll_task_result_return)
+
+
+class StorageMock:
+    def __init__(self, get_file_md5_return=None, fast_transfer_file_return=None):
+        self.get_file_md5 = MagicMock(return_value=get_file_md5_return)
+        self.fast_transfer_file = MagicMock(return_value=fast_transfer_file_return)
 
 
 class AgentTestObjFactory:

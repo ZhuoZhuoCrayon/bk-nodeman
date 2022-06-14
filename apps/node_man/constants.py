@@ -50,6 +50,25 @@ JOB_SLEEP_SECOND = 3  # 默认轮询作业周期 3s
 MAX_POLL_TIMES = JOB_MAX_RETRY
 MAX_UNINSTALL_RETRY = JOB_MAX_RETRY
 
+
+########################################################################################################
+# 周期任务周期 run_every，非特殊统一使用秒作为单位的 int 类型，不使用crontab格式
+# 以便与削峰函数 calculate_countdown 所用的 duration 复用
+########################################################################################################
+
+CONFIGURATION_POLICY_INTERVAL = 1 * TimeUnit.MINUTE
+GSE_SVR_DISCOVERY_INTERVAL = 1 * TimeUnit.MINUTE
+COLLECT_AUTO_TRIGGER_JOB_INTERVAL = 5 * TimeUnit.MINUTE
+SYNC_CMDB_CLOUD_AREA_INTERVAL = 15 * TimeUnit.MINUTE
+SYNC_AGENT_STATUS_TASK_INTERVAL = 30 * TimeUnit.MINUTE
+SYNC_PROC_STATUS_TASK_INTERVAL = 30 * TimeUnit.MINUTE
+
+CLEAN_REQUESTS_TRACKER_RECORDS_INTERVAL = 3 * TimeUnit.HOUR
+CLEAN_EXPIRED_INFO_INTERVAL = 6 * TimeUnit.HOUR
+
+SYNC_CMDB_BIZ_TOPO_TASK_INTERVAL = 1 * TimeUnit.DAY
+SYNC_CMDB_HOST_INTERVAL = 1 * TimeUnit.DAY
+
 ########################################################################################################
 # 第三方系统相关配置
 ########################################################################################################
@@ -100,23 +119,25 @@ AUTH_TUPLE = ("PASSWORD", "KEY", "TJJ_PASSWORD")
 AUTH_CHOICES = tuple_choices(AUTH_TUPLE)
 AuthType = choices_to_namedtuple(AUTH_CHOICES)
 
-OS_TUPLE = ("LINUX", "WINDOWS", "AIX")
+OS_TUPLE = ("LINUX", "WINDOWS", "AIX", "SOLARIS")
 OS_CHOICES = tuple_choices(OS_TUPLE)
 OsType = choices_to_namedtuple(OS_CHOICES)
-OS_CHN = {"WINDOWS": "Windows", "LINUX": "Linux", "AIX": "Aix"}
-BK_OS_TYPE = {"LINUX": "1", "WINDOWS": "2", "AIX": "3"}
+OS_CHN = {os_type: os_type if os_type == OsType.AIX else os_type.capitalize() for os_type in OS_TUPLE}
+BK_OS_TYPE = {"LINUX": "1", "WINDOWS": "2", "AIX": "3", "SOLARIS": "5"}
 
 # 操作系统->系统账户映射表
 ACCOUNT_MAP = {
     OsType.WINDOWS: settings.BACKEND_WINDOWS_ACCOUNT,
     OsType.LINUX: "root",
     OsType.AIX: "root",
+    OsType.SOLARIS: "root",
     OsType.WINDOWS.lower(): settings.BACKEND_WINDOWS_ACCOUNT,
     OsType.LINUX.lower: "root",
     OsType.AIX.lower: "root",
+    OsType.SOLARIS.lower: "root",
 }
 
-OS_TYPE = {"1": "LINUX", "2": "WINDOWS", "3": "AIX"}
+OS_TYPE = {"1": "LINUX", "2": "WINDOWS", "3": "AIX", "5": "SOLARIS"}
 
 NODE_TUPLE = ("AGENT", "PROXY", "PAGENT")
 NODE_CHOICES = tuple_choices(NODE_TUPLE)
@@ -439,13 +460,14 @@ PLUGIN_OS_TUPLE = ("windows", "linux", "aix")
 PLUGIN_OS_CHOICES = tuple_choices(PLUGIN_OS_TUPLE)
 PluginOsType = choices_to_namedtuple(PLUGIN_OS_CHOICES)
 
-CPU_TUPLE = ("x86", "x86_64", "powerpc", "aarch64")
+CPU_TUPLE = ("x86", "x86_64", "powerpc", "aarch64", "sparc")
 CPU_CHOICES = tuple_choices(CPU_TUPLE)
 CpuType = choices_to_namedtuple(CPU_CHOICES)
 DEFAULT_OS_CPU_MAP = {
     OsType.LINUX: CpuType.x86_64,
     OsType.WINDOWS: CpuType.x86_64,
     OsType.AIX: CpuType.powerpc,
+    OsType.SOLARIS: CpuType.sparc,
 }
 
 # TODO: 部署方式，后续确认
@@ -483,7 +505,7 @@ SYNC_CMDB_HOST_BIZ_BLACKLIST = "SYNC_CMDB_HOST_BIZ_BLACKLIST"
 # 周期任务相关
 QUERY_EXPIRED_INFO_LENS = 2000
 QUERY_AGENT_STATUS_HOST_LENS = 500
-QUERY_PROC_STATUS_HOST_LENS = 500
+QUERY_PROC_STATUS_HOST_LENS = 2000
 QUERY_CMDB_LIMIT = 500
 QUERY_CMDB_MODULE_LIMIT = 500
 QUERY_CLOUD_LIMIT = 200
@@ -498,7 +520,7 @@ BIZ_CUSTOM_PROPERTY_CACHE_SUFFIX = "_property_cache"
 JOB_MAX_VALUE = 100000
 
 # 监听资源类型
-RESOURCE_TUPLE = ("host", "host_relation")
+RESOURCE_TUPLE = ("host", "host_relation", "process")
 RESOURCE_CHOICES = tuple_choices(RESOURCE_TUPLE)
 ResourceType = choices_to_namedtuple(RESOURCE_CHOICES)
 
@@ -603,6 +625,7 @@ class SetupScriptFileName(Enum):
     SETUP_AGENT_BAT = "setup_agent.bat"
     SETUP_PAGENT_PY = "setup_pagent.py"
     GSECTL_BAT = "gsectl.bat"
+    SETUP_AGENT_SOLARIS_SH = "setup_solaris_agent.sh"
 
 
 class BkJobStatus(object):
@@ -626,6 +649,7 @@ class BkAgentStatus(object):
     """
 
     ALIVE = 1
+    NOT_ALIVE = 0
 
 
 class BkJobErrorCode(object):
@@ -745,3 +769,11 @@ FILES_TO_PUSH_TO_PROXY = [
         "name": _("下发安装工具"),
     },
 ]
+
+
+SCRIPT_FILE_NAME_MAP = {
+    OsType.LINUX: SetupScriptFileName.SETUP_AGENT_SH.value,
+    OsType.WINDOWS: SetupScriptFileName.SETUP_AGENT_BAT.value,
+    OsType.AIX: SetupScriptFileName.SETUP_AGENT_KSH.value,
+    OsType.SOLARIS: SetupScriptFileName.SETUP_AGENT_SOLARIS_SH.value,
+}

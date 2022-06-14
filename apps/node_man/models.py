@@ -81,12 +81,14 @@ class GlobalSettings(models.Model):
         """枚举全局配置KEY，避免散落在各处难以维护"""
 
         USE_TJJ = "USE_TJJ"  # 是否启用TJJ
+        REGISTER_WIN_SERVICE_WITH_PASS = "REGISTER_WIN_SERVICE_WITH_PASS"  # 是否使用密码注册windows服务
         CONFIG_POLICY_BY_SOPS = "CONFIG_POLICY_BY_SOPS"  # 是否使用标准运维自动开通网络策略
         CONFIG_POLICY_BY_TENCENT_VPC = "CONFIG_POLICY_BY_TENCENT_VPC"  # 是否使用腾讯云SDK自动开通网络策略
         APIGW_PUBLIC_KEY = "APIGW_PUBLIC_KEY"  # APIGW公钥，从PaaS接口获取或直接配到settings中
         SYNC_CMDB_HOST_BIZ_BLACKLIST = "SYNC_CMDB_HOST_BIZ_BLACKLIST"  # 排除掉黑名单业务的主机同步，比如 SA 业务，包含大量主机但无需同步
         LAST_SUB_TASK_ID = "LAST_SUB_TASK_ID"  # 定时任务 collect_auto_trigger_job 用于记录最后一个同步的 sub_task ID
         NOT_READY_TASK_INFO_MAP = "NOT_READY_TASK_INFO_MAP"  # 定时任务 collect_auto_trigger_job 记录未就绪 sub_task 信息
+        HEAD_PLUGINS = "HEAD_PLUGINS"  # 插件类型名字
 
     key = models.CharField(_("键"), max_length=255, db_index=True, primary_key=True)
     v_json = JSONField(_("值"))
@@ -239,7 +241,7 @@ class AESTextField(models.TextField):
             kwargs["prefix"] = self.prefix
         return name, path, args, kwargs
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection, context=None):
         """
         出库后解密数据
         """
@@ -436,8 +438,8 @@ class Host(models.Model):
     @property
     def agent_config(self):
         os_type = self.os_type.lower()
-        # AIX与Linux共用配置
-        if self.os_type == constants.OsType.AIX:
+        # AIX、SOLARIS与Linux共用配置
+        if self.os_type in [constants.OsType.AIX, constants.OsType.SOLARIS]:
             os_type = constants.OsType.LINUX.lower()
         return self.ap.agent_config[os_type]
 
@@ -731,7 +733,10 @@ class InstallChannel(models.Model):
     安装通道，利用 jump_servers 作为跳板登录到目标机器执行脚本，使用 upstream_servers 作为上游来渲染配置，
     由于各种特殊网络环境，目前安装通道需手动安装
     jump_servers = ["127.0.0.1", "127.0.0.2"]
-    upstream_servers = {"taskserver": ["127.0.0.1"], "btfileserver": ["127.0.0.1"],"dataserver": ["127.0.0.1"]}
+    upstream_servers = {
+        "taskserver": ["127.0.0.1"], "btfileserver": ["127.0.0.1"],"dataserver": ["127.0.0.1"],
+        "agent_download_proxy": true, "channel_proxy_address": "http://127.0.0.1:17981"
+    }
     """
 
     name = models.CharField(_("名称"), max_length=45)
@@ -2036,7 +2041,7 @@ class SubscriptionInstanceRecord(models.Model):
     steps = JSONField(_("步骤信息"))
     pipeline_id = models.CharField(_("Pipeline ID"), max_length=50, default="", blank=True, db_index=True)
     start_pipeline_id = models.CharField(_("Start Pipeline ID"), max_length=50, default="", blank=True, db_index=True)
-    update_time = models.DateTimeField(_("更新时间"), auto_now=True, db_index=True)
+    update_time = models.DateTimeField(_("更新时间"), default=timezone.now, db_index=True)
     create_time = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
     need_clean = models.BooleanField(_("是否需要清洗临时信息"), default=False)
     is_latest = models.BooleanField(_("是否为实例最新记录"), default=True, db_index=True)

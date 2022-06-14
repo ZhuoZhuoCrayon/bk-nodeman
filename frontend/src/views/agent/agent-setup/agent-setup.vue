@@ -90,12 +90,14 @@
               <bk-option v-for="item in curApList" :key="item.id" :id="item.id" :name="item.name"></bk-option>
             </bk-select>
           </bk-form-item>
-          <bk-form-item class="form-item-vertical" :label="$t('安装信息')" :class="{ 'mb30': isScroll }" required>
+          <bk-form-item :label="$t('安装信息')" required>
             <filter-ip-tips
-              class="mb15 filter-tips"
+              class="filter-tips"
               v-if="filterList.length && showFilterTips"
               @click="handleShowDetail">
             </filter-ip-tips>
+          </bk-form-item>
+          <bk-form-item class="form-item-vertical" :class="['mt0', { 'mb30': isScroll }]">
             <InstallTable
               :class="{ 'agent-setup-table': isManual }"
               ref="installTable"
@@ -356,9 +358,10 @@ export default class AgentSetup extends Mixins(mixin, formLabelMixin) {
     this.form.validate().then(async () => {
       if (setupTableValidate) {
         this.loadingSetupBtn = true;
+        this.showFilterTips = false;
         const params = {
           job_type: 'INSTALL_AGENT',
-          hosts: this.getFormData().map((item: ISetupRow) => {
+          hosts: this.getFormData().map(({ prove, ...item }: ISetupRow) => {
             if (isEmpty(item.login_ip)) {
               delete item.login_ip;
             }
@@ -366,6 +369,10 @@ export default class AgentSetup extends Mixins(mixin, formLabelMixin) {
               delete item.bt_speed_limit;
             } else {
               item.bt_speed_limit = Number(item.bt_speed_limit);
+            }
+            const authType = item.auth_type?.toLowerCase() as ('key' | 'password');
+            if (item[authType]) {
+              item[authType] = this.$RSA.getNameMixinEncrypt(item[authType] as string);
             }
             item.peer_exchange_switch_for_agent = Number(item.peer_exchange_switch_for_agent);
             return item;
@@ -606,7 +613,7 @@ export default class AgentSetup extends Mixins(mixin, formLabelMixin) {
       }
     }
     .filter-tips {
-      margin-top: 8px;
+      height: 32px;
     }
   }
   &-right {

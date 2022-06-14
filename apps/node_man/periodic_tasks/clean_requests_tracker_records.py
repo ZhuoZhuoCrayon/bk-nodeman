@@ -10,10 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from celery.schedules import crontab
 from celery.task import periodic_task
 from django.core.cache import cache
 
+from apps.node_man import constants
 from common.log import logger
 from requests_tracker.models import Config, Record
 
@@ -21,9 +21,9 @@ from requests_tracker.models import Config, Record
 @periodic_task(
     queue="default",
     options={"queue": "default"},
-    run_every=crontab(hour="*/3", minute="*", day_of_week="*", day_of_month="*", month_of_year="*"),
+    run_every=constants.CLEAN_REQUESTS_TRACKER_RECORDS_INTERVAL,
 )
-def clean_requests_tracker_records():
+def clean_requests_tracker_records_periodic_task():
     # 检查组件请求记录，清空2天前的记录
     logger.info("Start cleaning up requests tracker records.")
     two_days_before = datetime.datetime.now() - datetime.timedelta(days=2)

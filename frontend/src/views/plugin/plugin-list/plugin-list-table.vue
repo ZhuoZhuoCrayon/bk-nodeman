@@ -100,7 +100,7 @@
           {{ osMap[row.os_type] | filterEmpty }}
         </template>
       </bk-table-column>
-      <template v-for="(plugin, index) in officialPlugin">
+      <template v-for="(plugin, index) in pluginNames">
         <bk-table-column
           min-width="108"
           :key="index"
@@ -175,6 +175,7 @@ export default class PluginRuleTable extends Mixins(FormLabelMixin, HeaderRender
   @Prop({ default: 0, type: Number }) private readonly runningCount!: number;
   @Prop({ default: () => [], type: Array }) private readonly selections!: IPluginList[];
   @Prop({ default: () => [], type: Array }) private readonly excludeData!: IPluginList[];
+  @Prop({ default: () => [], type: Array }) private readonly pluginNames!: string[];
 
   @Ref('nodeListTable') private readonly nodeListTable!: any;
 
@@ -196,20 +197,61 @@ export default class PluginRuleTable extends Mixins(FormLabelMixin, HeaderRender
       this.nodeListTable.doLayout();
     });
   }
+  @Watch('pluginNames')
+  private handleResetFilterField(val: string[]) {
+    const plugin = val.map(name => ({
+      name,
+      id: name,
+      checked: true,
+      disabled: false,
+    }));
+    this.filterField.splice(this.filterField.length, 0, ...plugin);
+  }
 
-  private officialPlugin: string[] = ['basereport', 'processbeat', 'exceptionbeat', 'bkunifylogbeat', 'bkmonitorbeat'];
   private currentIp = '';
   private currentHostId = -1;
   private currentHostStatus = '';
   private showSlider = false;
-  private osMap = {
-    LINUX: 'Linux',
-    WINDOWS: 'Windows',
-    AIX: 'AIX',
-  };
   // 本地存储Key
   private localMark = 'plugin_list_table';
-  private filterField: ITabelFliter[] = [];
+  private filterField: ITabelFliter[] = [
+    {
+      checked: true,
+      disabled: true,
+      name: 'IP',
+      id: 'inner_ip',
+    },
+    {
+      checked: true,
+      disabled: false,
+      name: window.i18n.t('节点类型'),
+      id: 'node_type',
+    },
+    {
+      checked: true,
+      disabled: false,
+      name: window.i18n.t('云区域'),
+      id: 'bk_cloud_id',
+    },
+    {
+      checked: true,
+      disabled: false,
+      name: window.i18n.t('归属业务'),
+      id: 'bk_biz_name',
+    },
+    {
+      checked: true,
+      disabled: false,
+      name: window.i18n.t('操作系统'),
+      id: 'os_type',
+    },
+    // {
+    //   checked: true,
+    //   disabled: false,
+    //   name: window.i18n.t('Agent状态'),
+    //   id: 'agent_status'
+    // },
+  ];
   private popoverIns: any = null;
   private loading = false;
   private detailData: IPluginStatus[] = [];
@@ -220,59 +262,14 @@ export default class PluginRuleTable extends Mixins(FormLabelMixin, HeaderRender
     failed: this.$t('异常'),   // 失败
   };
 
+  private get osMap() {
+    return MainStore.osMap;
+  }
   private get selectionCount() {
     if (this.checkType === 'current') {
       return this.selections.length;
     }
     return this.runningCount - this.excludeData.length;
-  }
-
-  private created() {
-    const plugin = this.officialPlugin.map(name => ({
-      name,
-      id: name,
-      checked: true,
-      disabled: false,
-    }));
-    this.filterField = [
-      {
-        checked: true,
-        disabled: true,
-        name: 'IP',
-        id: 'inner_ip',
-      },
-      {
-        checked: true,
-        disabled: false,
-        name: this.$t('节点类型'),
-        id: 'node_type',
-      },
-      {
-        checked: true,
-        disabled: false,
-        name: window.i18n.t('云区域'),
-        id: 'bk_cloud_id',
-      },
-      {
-        checked: true,
-        disabled: false,
-        name: window.i18n.t('归属业务'),
-        id: 'bk_biz_name',
-      },
-      {
-        checked: true,
-        disabled: false,
-        name: window.i18n.t('操作系统'),
-        id: 'os_type',
-      },
-      // {
-      //   checked: true,
-      //   disabled: false,
-      //   name: window.i18n.t('Agent状态'),
-      //   id: 'agent_status'
-      // },
-      ...plugin,
-    ];
   }
 
   private getColumnShowStatus(id: string) {
@@ -389,10 +386,6 @@ export default class PluginRuleTable extends Mixins(FormLabelMixin, HeaderRender
     .cell {
       padding-left: 0;
     }
-  }
-  >>> .bk-table-fixed {
-    /* stylelint-disable-next-line declaration-no-important */
-    bottom: 0 !important;
   }
   .checkbox-row-item {
     display: flex;

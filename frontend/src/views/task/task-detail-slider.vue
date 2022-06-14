@@ -21,7 +21,7 @@
       <template v-if="slider.hostType === 'Agent' && hostSys === 'WINDOWS'">
         <p class="guide-title">
           1. {{ $t('windowsStrategy1Before') }}
-          <span class="guide-link"> curl.exe </span>
+          <a class="guide-link" :href="curlUrl" target="_blank"> curl.exe </a>
           {{ $t('windowsStrategy1After') }}
         </p>
         <p class="guide-title">2. {{ $t('windowsStrategy2') }}</p>
@@ -126,6 +126,16 @@ export default class TaskDetailSlider extends Vue {
     return list;
   }
 
+  private get curlUrl() {
+    const ap = AgentStore.apList.find(item => item.id === this.slider.row.apId);
+    if (ap) {
+      const { bkCloudId } = this.slider.row;
+      const packageUrl = bkCloudId === 0 ? ap.package_inner_url : ap.package_outer_url;
+      return packageUrl.endsWith('/') ? `${packageUrl}curl.exe ` : `${packageUrl}/curl.exe `;
+    }
+    return '';
+  }
+
   @Watch('show')
   public handleShowChange(isShow: boolean) {
     if (isShow) {
@@ -202,17 +212,14 @@ export default class TaskDetailSlider extends Vue {
       const commandItem = commandList.find((item: any) => item.ip === row.innerIp);
       commandStr = commandItem ? commandItem.command.replace(/<[^>]+>/gi, '') : '';
     }
-    const content = { theme: 'error', message: this.$t('命令复制失败') };
     if (res && commandStr) {
-      const result = copyText(commandStr);
-      if (result) {
-        Object.assign(content, {
+      copyText(commandStr, () => {
+        this.$bkMessage({
           theme: 'success',
           message: this.$t('命令复制成功'),
         });
-      }
+      });
     }
-    this.$bkMessage(content);
   }
 
   @Emit('update')

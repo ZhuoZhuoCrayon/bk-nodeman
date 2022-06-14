@@ -15,20 +15,22 @@
           </ul>
         </template>
       </tips>
-      <FilterIpTips
-        class="mb15"
-        v-if="filterList.length && showFilterTips"
-        @click="handleShowDetail">
-      </FilterIpTips>
       <bk-form
         ref="form"
-        v-if="showTab"
-        class="mb20 fs0 label-tl-form auto-width-form"
-        :label-width="0">
-        <install-method required :is-manual="isManual" @change="installMethodHandle"></install-method>
-      </bk-form>
-      <bk-form form-type="vertical" v-test.agentImport="'importForm'">
-        <bk-form-item :class="{ 'form-item-not-lable': !showTab }" :label="$t('安装信息')" required>
+        class="mb20 label-tl-form auto-width-form"
+        :label-width="0"
+        v-test.agentImport="'importForm'">
+        <template v-if="showTab">
+          <install-method required :is-manual="isManual" @change="installMethodHandle"></install-method>
+          <bk-form-item :label="$t('安装信息')" required>
+            <FilterIpTips
+              class="filter-tips"
+              v-if="filterList.length && showFilterTips"
+              @click="handleShowDetail">
+            </FilterIpTips>
+          </bk-form-item>
+        </template>
+        <bk-form-item class="mt0 form-item-vertical">
           <InstallTable
             ref="setupTable"
             :local-mark="`agent${isManual ? '_manual' : '' }_${type}`"
@@ -325,6 +327,9 @@ export default class AgentImport extends Mixins(mixin) {
           ? { ap_id: apDefault }
           : {};
           // 打平数据
+        if (!item.install_channel_id) {
+          item.install_channel_id = 'default';
+        }
         return Object.assign({}, item, item.identity_info, ap);
       });
     } else {
@@ -370,6 +375,7 @@ export default class AgentImport extends Mixins(mixin) {
     const setupTableValidate = this.setupTable.validate();
     if (setupTableValidate) {
       this.loadingSetupBtn = true;
+      this.showFilterTips = false;
       let hosts = this.setupTable.getData();
       hosts.forEach((item: ISetupRow) => {
         if (isEmpty(item.login_ip)) {
@@ -383,6 +389,10 @@ export default class AgentImport extends Mixins(mixin) {
         item.peer_exchange_switch_for_agent = Number(item.peer_exchange_switch_for_agent);
         if (item.install_channel_id === 'default') {
           item.install_channel_id = null;
+        }
+        const authType = item.auth_type?.toLowerCase() as ('key' | 'password');
+        if (item[authType]) {
+          item[authType] = this.$RSA.getNameMixinEncrypt(item[authType] as string);
         }
       });
       // 安装agent或pagent时，需要设置初始的安装类型
@@ -549,6 +559,9 @@ export default class AgentImport extends Mixins(mixin) {
   &-left {
     flex: 1;
     height: calc(100vh - 120px);
+    .filter-tips {
+      height: 32px;
+    }
     .left-footer {
       @mixin layout-flex row, center, center;
       .btn-wrapper {

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import hashlib
+import json
 import logging
 import math
 import os
@@ -20,11 +21,13 @@ from itertools import groupby
 from typing import Any, Dict, List, Union
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Q
 from django.utils import timezone
 
 from apps.backend.subscription import task_tools
 from apps.backend.subscription.commons import get_host_by_inst, list_biz_hosts
+from apps.backend.subscription.constants import SUBSCRIPTION_SCOPE_CACHE_TIME
 from apps.backend.subscription.errors import (
     ConfigRenderFailed,
     MultipleObjectError,
@@ -37,6 +40,8 @@ from apps.node_man import constants, models
 from apps.node_man import tools as node_man_tools
 from apps.utils.basic import chunk_lists, distinct_dict_list, order_dict
 from apps.utils.batch_request import batch_request, request_multi_thread
+from apps.utils.cache import func_cache_decorator
+from apps.utils.md5 import count_md5
 from apps.utils.time_handler import strftime_local
 
 logger = logging.getLogger("app")
@@ -456,22 +461,25 @@ def get_host_detail(host_info_list: list, bk_biz_id: int = None):
                 ],
             }
         }
+
     elif "ip" in first_host_info and "bk_cloud_id" in first_host_info:
-        cond = {
-            "host_property_filter": {
-                "condition": "OR",
-                "rules": [
-                    {
-                        "condition": "AND",
-                        "rules": [
-                            {"field": "bk_host_innerip", "operator": "equal", "value": host["ip"]},
-                            {"field": "bk_cloud_id", "operator": "equal", "value": host["bk_cloud_id"]},
-                        ],
-                    }
-                    for host in host_info_list
-                ],
-            }
-        }
+
+        host_infos_gby_bk_cloud_id = defaultdict(list)
+        for host_info in host_info_list:
+            host_infos_gby_bk_cloud_id[host_info["bk_cloud_id"]].append(host_info)
+        rules = []
+        for bk_cloud_id, host_infos in host_infos_gby_bk_cloud_id.items():
+            ips = [host_info["ip"] for host_info in host_infos]
+            rules.append(
+                {
+                    "condition": "AND",
+                    "rules": [
+                        {"field": "bk_host_innerip", "operator": "in", "value": ips},
+                        {"field": "bk_cloud_id", "operator": "equal", "value": bk_cloud_id},
+                    ],
+                }
+            )
+        cond = {"host_property_filter": {"condition": "OR", "rules": rules}}
     else:
         # 如果不满足 bk_host_id / ip & bk_cloud_id 的传入格式，此时直接返回空列表，表示查询不到任何主机
         # 说明：
@@ -614,7 +622,7 @@ def support_multi_biz(get_instances_by_scope_func):
     """支持scope多范围"""
 
     @wraps(get_instances_by_scope_func)
-    def wrapper(scope: Dict[str, Union[Dict, Any]]) -> Dict[str, Dict[str, Union[Dict, Any]]]:
+    def wrapper(scope: Dict[str, Union[Dict, Any]], *args, **kwargs) -> Dict[str, Dict[str, Union[Dict, Any]]]:
         if scope.get("bk_biz_id") is not None:
             return get_instances_by_scope_func(scope)
         # 兼容只传bk_host_id的情况
@@ -647,6 +655,7 @@ def support_multi_biz(get_instances_by_scope_func):
 
 
 @support_multi_biz
+@func_cache_decorator(cache_time=SUBSCRIPTION_SCOPE_CACHE_TIME)
 def get_instances_by_scope(scope: Dict[str, Union[Dict, int, Any]]) -> Dict[str, Dict[str, Union[Dict, Any]]]:
     """
     获取范围内的所有主机
@@ -767,6 +776,13 @@ def get_instances_by_scope(scope: Dict[str, Union[Dict, int, Any]]) -> Dict[str,
             data.update(instance["service"])
         instances_dict[create_node_id(data)] = instance
 
+    # 进行缓存，提高部分接口查询效率，避免重复请求
+    scope_md5 = count_md5(scope)
+    cache.set(
+        "bknodeman:subscription_scope_cache_{}".format(scope_md5),
+        json.dumps(instances_dict),
+        SUBSCRIPTION_SCOPE_CACHE_TIME,
+    )
     return instances_dict
 
 

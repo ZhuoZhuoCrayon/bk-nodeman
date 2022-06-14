@@ -423,8 +423,8 @@ class JobHealthzChecker(BaseHealthzChecker):
         self._fill_self_api_list(job_test_cases)
 
         args = job_test_cases.get("fast_execute_script", {}).get("args", None)
-        bk_biz_id = args["bk_biz_id"]
         try:
+            bk_biz_id = args["bk_biz_id"]
             hosts_result = client_v2.cc.get_host_by_topo_node(bk_biz_id=bk_biz_id)
             # 如果没有主机数据，则需要删除fast_execute_script接口
             if not hosts_result:
@@ -495,7 +495,7 @@ class JobHealthzChecker(BaseHealthzChecker):
         args = {}
         if job_test_cases[api_name].get("args", None):
             args = job_test_cases[api_name]["args"]
-        if kwargs["data"]:
+        if kwargs.get("data"):
             args.update(kwargs["data"])
         args.update({"bk_biz_id": request.biz_id, "operator": request.user.username})
         try:

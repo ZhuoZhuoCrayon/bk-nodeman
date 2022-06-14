@@ -284,7 +284,7 @@ export default class CloudDetailTable extends Vue {
   // Proxy操作
   private operate = [
     { id: 'uninstall', name: this.$t('卸载'), disabled: false, show: true },
-    { id: 'remove', name: this.$t('移除'), disabled: false, show: true },
+    // { id: 'remove', name: this.$t('移除'), disabled: false, show: true },
     { id: 'reboot', name: this.$t('重启'), disabled: false, show: true },
     { id: 'reload', name: this.$t('重载配置'), disabled: false, show: true },
     { id: 'upgrade', name: this.$t('升级'), disabled: false, show: true },
@@ -556,10 +556,9 @@ export default class CloudDetailTable extends Vue {
   public handleCopyIp() {
     const checkedIpText = this.proxyData.map(item => item.inner_ip).join('\n');
     if (!checkedIpText) return;
-    const result = copyText(checkedIpText);
-    if (result) {
+    copyText(checkedIpText, () => {
       this.$bkMessage({ theme: 'success', message: this.$t('IP复制成功', { num: this.proxyData.length }) });
-    }
+    });
   }
 }
 </script>

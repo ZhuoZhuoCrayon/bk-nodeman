@@ -162,6 +162,7 @@
           ref="searchSelect"
           ext-cls="right-select"
           :data="searchSelectData"
+          :key="searchInputKey"
           v-model="searchSelectValue"
           :show-condition="false"
           :placeholder="$t('agent列表搜索')"
@@ -235,15 +236,20 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          fixed
           key="IP"
           label="IP"
-          prop="inner_ip">
+          prop="inner_ip"
+          width="110"
+          show-overflow-tooltip>
         </bk-table-column>
         <bk-table-column
           key="login_ip"
           :label="$t('登录IP')"
           prop="login_ip"
-          v-if="filter['login_ip'].mockChecked">
+          width="110"
+          v-if="filter['login_ip'].mockChecked"
+          show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.login_ip | filterEmpty }}
           </template>
@@ -252,7 +258,8 @@
           key="biz"
           :label="$t('归属业务')"
           prop="bk_biz_name"
-          v-if="filter['bk_biz_name'].mockChecked">
+          v-if="filter['bk_biz_name'].mockChecked"
+          show-overflow-tooltip>
         </bk-table-column>
         <bk-table-column
           key="cloudArea"
@@ -524,7 +531,7 @@
 import { Component, Watch, Ref, Mixins, Prop } from 'vue-property-decorator';
 import { CreateElement } from 'vue';
 import { MainStore, AgentStore } from '@/store/index';
-import { IBizValue, IBkColumn, ISortData, ITabelFliter } from '@/types';
+import { IBizValue, IBkColumn, ISearchItem, ISortData, ITabelFliter } from '@/types';
 import {
   IAgent, IAgentHost, IAgentJob, IAgentTable, IAgentTopo,
   IOperateItem, IAgentSearchIp, IAgentSearch,
@@ -554,6 +561,9 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
   @Ref('agentTable') private readonly agentTable!: any;
 
   @Prop({ default: () => [], type: Array }) private readonly ipList!: string[];
+  @Prop({ default: () => [], type: Array }) private readonly bk_biz_id!: number[];
+  @Prop({ default: () => [], type: Array }) private readonly agent_status!: string[];
+  @Prop({ default: () => [], type: Array }) private readonly inner_ip!: string[];
 
   private table: IAgentTable = {
     // 所有运行主机的数量
@@ -575,6 +585,7 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
     sort_type: '',
   };
   private loading = true;
+  private searchInputKey = 0;
   // 跨页全选loading
   private checkLoading = false;
   // ip复制按钮加载状态
@@ -691,11 +702,6 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
     terminated: this.$t('异常'),
     unknown: this.$t('未知'),
   };
-  private osMap = {
-    LINUX: 'Linux',
-    WINDOWS: 'Windows',
-    AIX: 'AIX',
-  };
   // 批量操作
   private operate: IOperateItem[] = [
     {
@@ -716,12 +722,12 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
       disabled: false,
       show: true,
     },
-    {
-      id: 'remove',
-      name: window.i18n.t('移除'),
-      disabled: false,
-      show: true,
-    },
+    // {
+    //   id: 'remove',
+    //   name: window.i18n.t('移除'),
+    //   disabled: false,
+    //   show: true,
+    // },
     {
       id: 'reload',
       name: window.i18n.t('重载配置'),
@@ -767,6 +773,9 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
   private operateBiz: IBizValue[] =[]; // 有操作权限的业务
   private cloudAgentNum = 0; // 从云区域点击跳转过来的主机数量，区分是否因为权限问题看不到主机
 
+  private get osMap() {
+    return MainStore.osMap;
+  }
   private get fontSize() {
     return MainStore.fontSize;
   }
@@ -875,15 +884,7 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
   }
 
   private created() {
-    this.search.biz = this.selectedBiz;
-    // 初始化IP条件
-    if (this.ipList && this.ipList.length) {
-      this.searchSelectValue.push({
-        id: 'inner_ip',
-        name: 'IP',
-        values: this.ipList.map(item => ({ id: item, name: item })),
-      });
-    }
+    this.initRouterQuery();
   }
   private mounted() {
     this.handleInit();
@@ -893,28 +894,60 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
   private async handleInit() {
     this.initCustomColStatus();
     const { cloud, agentNum } = this.$route.params;
-    if (!cloud) {
+    if (!cloud && !this.agent_status.length) {
       this.initAgentList();
     }
     if (agentNum) {
       this.cloudAgentNum = (agentNum as any);
     }
-    AgentStore.getFilterCondition().then((data) => {
-      this.filterData = data;
-      if (cloud) {
-        this.handleSearchSelectChange([
-          {
-            name: '云区域',
-            id: 'bk_cloud_id',
-            values: [cloud as any],
-          },
-        ]);
-        this.handlePushValue('bk_cloud_id', [cloud as any], false);
-      }
-    });
     if (this.bkBizList) {
       this.initTopoFormat();
     }
+  }
+  private initRouterQuery() {
+    this.search.biz = this.bk_biz_id.length ? this.selectedBiz : [...this.bk_biz_id];
+    const searchParams: ISearchItem[] = [];
+    const { cloud } = this.$route.params;
+    AgentStore.getFilterCondition().then((data) => {
+      this.filterData = data;
+      if (cloud) {
+        searchParams.push({
+          name: this.filter.bk_cloud_id.name,
+          id: 'bk_cloud_id',
+          values: [cloud as any],
+        });
+      }
+      if (this.inner_ip.length || (this.ipList && this.ipList.length)) {
+        const ipList = this.inner_ip.length ? this.inner_ip : this.ipList;
+        searchParams.push({
+          id: 'inner_ip',
+          name: 'IP',
+          values: ipList.map(item => ({ id: item, name: item, checked: false })),
+        });
+      }
+      if (this.agent_status.length) {
+        const statusFilter = data.find(item => item.id === 'status');
+        if (statusFilter?.children) {
+          const statusArr = this.agent_status.map((status) => {
+            const childFilter = (statusFilter.children || []).find(item => item.id === status);
+            return {
+              checked: true,
+              id: status,
+              name: childFilter?.name || status,
+            };
+          });
+          searchParams.push({
+            id: 'agent_status',
+            name: this.filter.agent_status.name,
+            values: statusArr,
+          });
+        }
+      }
+      if (searchParams.length) {
+        this.searchSelectValue.push(...searchParams);
+        this.searchInputKey += 1;
+      }
+    });
   }
   private initCustomColStatus() {
     const data = this.handleGetStorage();
@@ -1305,10 +1338,9 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
     }
     const checkedIpText = data.list.join('\n');
     if (!checkedIpText) return;
-    const result = copyText(checkedIpText);
-    if (result) {
+    copyText(checkedIpText, () => {
       this.$bkMessage({ theme: 'success', message: this.$t('IP复制成功', { num: data.total }) });
-    }
+    });
     this.loadingCopyBtn = false;
   }
   /**
@@ -1319,10 +1351,9 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
     const data = await AgentStore.getHostIp(this.getAllIpCondition() as IAgentSearchIp);
     const allIpText = data.list.join('\n');
     if (!allIpText) return;
-    const result = copyText(allIpText);
-    if (result) {
+    copyText(allIpText, () => {
       this.$bkMessage({ theme: 'success', message: this.$t('IP复制成功', { num: data.total }) });
-    }
+    });
     this.loadingCopyBtn = false;
   }
   /**
@@ -1489,6 +1520,7 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
       params: {
         tableData: data.map(item => Object.assign({}, item, item.identity_info, {
           install_channel_id: item.install_channel_id ? item.install_channel_id : 'default',
+          port: item.os_type  === 'WINDOWS' ? 445 : item.port,
         })),
         type: jobType,
         // true：跨页全选（tableData表示标记删除的数据） false：非跨页全选（tableData表示编辑的数据）
@@ -1617,64 +1649,71 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
   /**
    * search select复制逻辑
    */
-  private handlePaste(e: { target: EventTarget, clipboardData: any }) {
-    const [data] = e.clipboardData.items;
-    data.getAsString((value: string) => {
-      // 已选择特定类型的情况下 - 保持原有的粘贴行为（排除IP类型的粘贴）
-      if (this.searchSelect.input) {
-        let selectionText = (window.getSelection() as Dictionary).toString(); // 鼠标选中的文本
-        const regExpChar = /[\\^$.*+?()[\]{}|]/g;
-        const hasRegExpChar = new RegExp(regExpChar.source);
-        selectionText = selectionText.replace(hasRegExpChar, '');
-        const inputValue = selectionText && !isEmpty(this.searchSelect.input.value)
-          ? this.searchSelect.input.value.replace(new RegExp(selectionText), '')
-          : this.searchSelect.input.value || '';
+  private handlePaste(e: { target: EventTarget, clipboardData: any, originalEvent?: any }) {
+    let value = '';
+    try {
+      const clp = (e.originalEvent || e).clipboardData;
+      if (clp === undefined || clp === null) { // 兼容针对于opera ie等浏览器
+        value = window.clipboardData.getData('text') || '';
+      } else {
+        value = clp.getData('text/plain') || ''; // 兼容Chrome Firefox
+      }
+    } catch (err) {}
 
-        const str = value.replace(/;+|；+|_+|\\+|，+|,+|、+|\s+/g, ',').replace(/,+/g, ' ')
-          .trim();
-        const tmpStr = str.trim().split(' ');
-        const isIp = tmpStr.every(item => this.ipRegx.test(item));
-        let backfillValue = inputValue + value;
-        if (isIp || !!inputValue) {
-          if (isIp) {
-            backfillValue = '';
-            this.handlePushValue('inner_ip', tmpStr.map(ip => ({ id: ip, name: ip, checked: false })));
-            this.handleValueChange();
-          }
-          Object.assign(e.target, { innerText: backfillValue }); // 数据清空或合并
-          this.searchSelect.handleInputChange(e); // 回填并响应数据
-          this.searchSelect.handleInputFocus(e); // contenteditable类型 - 光标移动到最后
-        } else {
-          let directFilling = true;
-          const pairArr = backfillValue.replace(/:+|：+/g, ' ').trim()
-            .split(' ');
-          if (pairArr.length > 1) {
-            const [name, ...valueText] = pairArr;
-            const category = this.filterData.find(item => item.name === name);
-            if (category) {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { children, ...other } = category;
-              directFilling = false;
-              this.searchSelectValue.push({
-                ...other,
-                values: [{ id: valueText.join(''), name: valueText.join(''), checked: false }],
-              });
-              Object.assign(e.target, { innerText: '' }); // 数据清空或合并
-              this.searchSelect.handleInputChange(e); // 回填并响应数据
-              this.searchSelect.handleInputOutSide(e);
-            }
-          }
-          this.searchSelect.handleInputChange(e); // 回填并响应数据
-          if (directFilling) {
-            this.searchSelectValue.push({
-              id: str.trim().replace('\n', ''),
-              name: str.trim().replace('\n', ''),
-            });
-          }
+    // 已选择特定类型的情况下 - 保持原有的粘贴行为（排除IP类型的粘贴）
+    if (value.trim() && this.searchSelect.input) {
+      let selectionText = (window.getSelection() as Dictionary).toString(); // 鼠标选中的文本
+      const regExpChar = /[\\^$.*+?()[\]{}|]/g;
+      const hasRegExpChar = new RegExp(regExpChar.source);
+      selectionText = selectionText.replace(hasRegExpChar, '');
+      const inputValue = selectionText && !isEmpty(this.searchSelect.input.value)
+        ? this.searchSelect.input.value.replace(new RegExp(selectionText), '')
+        : this.searchSelect.input.value || '';
+
+      const str = value.replace(/;+|；+|_+|\\+|，+|,+|、+|\s+/g, ',').replace(/,+/g, ' ')
+        .trim();
+      const tmpStr = str.trim().split(' ');
+      const isIp = tmpStr.every(item => this.ipRegx.test(item));
+      let backfillValue = inputValue + value;
+      if (isIp || !!inputValue) {
+        if (isIp) {
+          backfillValue = '';
+          this.handlePushValue('inner_ip', tmpStr.map(ip => ({ id: ip, name: ip, checked: false })));
           this.handleValueChange();
         }
+        Object.assign(e.target, { innerText: backfillValue }); // 数据清空或合并
+        this.searchSelect.handleInputChange(e); // 回填并响应数据
+        this.searchSelect.handleInputFocus(e); // contenteditable类型 - 光标移动到最后
+      } else {
+        let directFilling = true;
+        const pairArr = backfillValue.replace(/:+|：+/g, ' ').trim()
+          .split(' ');
+        if (pairArr.length > 1) {
+          const [name, ...valueText] = pairArr;
+          const category = this.filterData.find(item => item.name === name);
+          if (category) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { children, ...other } = category;
+            directFilling = false;
+            this.searchSelectValue.push({
+              ...other,
+              values: [{ id: valueText.join(''), name: valueText.join(''), checked: false }],
+            });
+            Object.assign(e.target, { innerText: '' }); // 数据清空或合并
+            this.searchSelect.handleInputChange(e); // 回填并响应数据
+            this.searchSelect.handleInputOutSide(e);
+          }
+        }
+        this.searchSelect.handleInputChange(e); // 回填并响应数据
+        if (directFilling) {
+          this.searchSelectValue.push({
+            id: str.trim().replace('\n', ''),
+            name: str.trim().replace('\n', ''),
+          });
+        }
+        this.handleValueChange();
       }
-    });
+    }
   }
   /**
    * agent 版本排序
@@ -1764,9 +1803,6 @@ export default class AgentList extends Mixins(pollMixin, TableHeaderMixins, auth
 >>> .icon-down-wrapper {
   position: relative;
   left: 3px;
-}
->>> .bk-table-fixed-right-patch {
-  display: none;
 }
 .agent {
   min-height: calc(100vh - 112px);

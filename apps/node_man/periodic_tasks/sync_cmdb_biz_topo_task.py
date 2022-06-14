@@ -11,12 +11,12 @@ specific language governing permissions and limitations under the License.
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 
-from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
 from django.core.cache import cache
 
 from apps.component.esbclient import client_v2
+from apps.node_man import constants
 from apps.node_man.handlers import cmdb
 from apps.utils.periodic_task import calculate_countdown
 from common.log import logger
@@ -158,7 +158,7 @@ def cache_all_biz_topo():
 
 @task(queue="default", ignore_result=True)
 def cache_all_biz_topo_delay_task():
-    task_id = sync_cmdb_biz_topo_task.request.id
+    task_id = sync_cmdb_biz_topo_periodic_task.request.id
     logger.warning(f"{task_id} | cache_all_biz_topo_delay_task: Sync cmdb biz topo task' cache expired")
     cache_all_biz_topo()
     logger.warning(f"{task_id} | cache_all_biz_topo_delay_task: Re-cache finished")
@@ -167,16 +167,18 @@ def cache_all_biz_topo_delay_task():
 @periodic_task(
     queue="default",
     options={"queue": "default"},
-    run_every=crontab(hour="*", minute="*/15", day_of_week="*", day_of_month="*", month_of_year="*"),
+    run_every=constants.SYNC_CMDB_BIZ_TOPO_TASK_INTERVAL,
 )
-def sync_cmdb_biz_topo_task():
-    task_id = sync_cmdb_biz_topo_task.request.id
+def sync_cmdb_biz_topo_periodic_task():
+    task_id = sync_cmdb_biz_topo_periodic_task.request.id
     logger.info(f"{task_id} | sync_cmdb_biz_topo_task: Start sync cmdb biz topo task.")
 
     biz_data = client_v2.cc.search_business({"fields": ["bk_biz_id"]})
     bk_biz_ids = [biz["bk_biz_id"] for biz in biz_data.get("info", []) if biz["default"] == 0]
     for index, bk_biz_id in enumerate(bk_biz_ids):
-        countdown = calculate_countdown(len(bk_biz_ids), index)
+        countdown = calculate_countdown(
+            count=len(bk_biz_ids), index=index, duration=constants.SYNC_CMDB_BIZ_TOPO_TASK_INTERVAL
+        )
         logger.info(f"{task_id} | sync_cmdb_biz_topo_task after {countdown} seconds")
         get_and_cache_format_biz_topo.apply_async((bk_biz_id,), countdown=countdown)
     logger.info(f"{task_id} | sync_cmdb_biz_topo_task: Sync cmdb biz topo complete.")

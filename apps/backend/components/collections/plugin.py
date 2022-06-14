@@ -28,7 +28,7 @@ from apps.backend.api.constants import (
 from apps.backend.api.job import process_parms
 from apps.backend.components.collections.base import BaseService, CommonData
 from apps.backend.components.collections.job import JobV3BaseService
-from apps.backend.subscription.errors import PackageNotExists
+from apps.backend.subscription.errors import PackageNotExists, PluginValidationError
 from apps.backend.subscription.steps.adapter import PolicyStepAdapter
 from apps.backend.subscription.tools import (
     create_group_id,
@@ -207,6 +207,9 @@ class InitProcessStatusService(PluginBaseService):
         try:
             return policy_step_adapter.get_matching_package_obj(os_type, cpu_arch)
         except PackageNotExists as error:
+            # 插件包不支持或不存在时，记录异常信息，此实例不参与后续流程
+            self.move_insts_to_failed([subscription_instance.id], str(error))
+        except PluginValidationError as error:
             # 插件包不支持或不存在时，记录异常信息，此实例不参与后续流程
             self.move_insts_to_failed([subscription_instance.id], str(error))
 
@@ -590,11 +593,12 @@ class UnInstallPackageService(PluginExecuteScriptService):
 
         policy_step_adapter = common_data.policy_step_adapter
         category = policy_step_adapter.plugin_desc.category
-        script_param = "-t {category} -p {gse_home} -z {tmp_dir} -n {name} -r".format(
+        script_param = "-t {category} -p {gse_home} -z {tmp_dir} -n {name} -f {package} -r".format(
             category=category,
             gse_home=agent_config["setup_path"],
             name=package.project,
             tmp_dir=agent_config["temp_path"],
+            package=package.pkg_name,
         )
         group_id = process_status.group_id
         if category == constants.CategoryType.external and group_id:
