@@ -25,7 +25,9 @@ if __name__ == "__main__":
     #         try:
     #             Popen("/cache/.bk/env/bin/python /data/app/code/manage.py celery worker -Q backend".split())
     #         except Exception:
-    #             pass
+    #             pass rebase test 1
+    #             test 2
+    #             test 3
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
