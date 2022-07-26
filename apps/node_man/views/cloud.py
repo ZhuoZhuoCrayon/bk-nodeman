@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -15,8 +17,11 @@ from apps.generic import ModelViewSet
 from apps.node_man.handlers.cloud import CloudHandler
 from apps.node_man.handlers.permission import CloudPermission
 from apps.node_man.models import Cloud
+from apps.node_man.serializers import response
 from apps.node_man.serializers.cloud import EditSerializer, ListSerializer
 from apps.utils.local import get_request_username
+
+CLOUD_VIEW_TAGS = ["cloud"]
 
 
 class CloudViewSet(ModelViewSet):
@@ -24,27 +29,17 @@ class CloudViewSet(ModelViewSet):
     lookup_value_regex = "[0-9.]+"
     permission_classes = (CloudPermission,)
 
+    @swagger_auto_schema(
+        operation_description="查询云区域列表",
+        query_serializer=ListSerializer(),
+        responses={status.HTTP_200_OK: response.CloudListResponseSerializer()},
+        tags=CLOUD_VIEW_TAGS,
+    )
     def list(self, request, *args, **kwargs):
         """
         @api {GET} /cloud/ 查询云区域列表
         @apiName list_cloud
         @apiGroup Cloud
-        @apiDescription ap_id==-1代表自动选择接入点
-        @apiSuccessExample {json} 成功返回:
-        [
-            {
-                "bk_cloud_id": 1,
-                "bk_cloud_name": "云区域名称",
-                "isp": "tencent",
-                "isp_name": "腾讯云",
-                "isp_icon": "base64",
-                "ap_id": 1,
-                "ap_name": "接入点名称",
-                "proxy_count": 100,
-                "node_count": 200,
-                "is_visible": true
-            }
-        ]
         """
 
         self.serializer_class = ListSerializer
