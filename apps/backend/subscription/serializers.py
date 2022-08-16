@@ -130,7 +130,7 @@ class UpdateSubscriptionSerializer(GatewaySerializer):
 
     subscription_id = serializers.IntegerField()
     name = serializers.CharField(required=False)
-    scope = ScopeSerializer()
+    scope = UpdateScopeSerializer()
     steps = serializers.ListField(child=UpdateStepSerializer())
     run_immediately = serializers.BooleanField(required=False, default=False)
 
@@ -155,7 +155,7 @@ class RunSubscriptionSerializer(GatewaySerializer):
         nodes = serializers.ListField(child=serializers.DictField(), label="拓扑节点列表")
 
     subscription_id = serializers.IntegerField(label="订阅ID")
-    scope = ScopeSerializer(required=False, label="订阅监听的范围")
+    scope = RunScopeSerializer(required=False, label="订阅监听的范围")
     actions = serializers.DictField(child=serializers.CharField(), required=False)
 
 
