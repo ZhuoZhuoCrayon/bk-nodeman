@@ -34,8 +34,8 @@ class ConfigTemplateSerializer(serializers.Serializer):
     name = serializers.CharField(required=True, label="配置文件名")
     version = serializers.CharField(required=True, label="配置文件版本号")
     is_main = serializers.BooleanField(default=False, label="是否主配置")
-    os = serializers.ChoiceField(required=False, label="操作系统", choices=constants.OS_TUPLE)
-    cpu_arch = serializers.ChoiceField(required=False, label="CPU类型", choices=constants.CPU_TUPLE)
+    os = serializers.ChoiceField(required=False, label="操作系统", choices=constants.PLUGIN_OS_CHOICES)
+    cpu_arch = serializers.ChoiceField(required=False, label="CPU类型", choices=constants.CPU_CHOICES)
 
 
 class PluginStepConfigSerializer(StepConfigCheckAndSkipSer):

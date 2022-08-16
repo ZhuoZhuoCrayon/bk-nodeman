@@ -23,7 +23,7 @@ from apps.node_man.periodic_tasks import sync_cmdb_host_periodic_task
 from apps.node_man.serializers import response
 from apps.node_man.serializers.host import (
     BizProxySerializer,
-    HostSerializer,
+    HostSearchSerializer,
     HostUpdateSerializer,
     ProxySerializer,
     RemoveSerializer,
@@ -43,7 +43,7 @@ class HostViewSet(ModelViewSet):
         responses={status.HTTP_200_OK: response.HostSearchResponseSerializer()},
         tags=HOST_VIEW_TAGS,
     )
-    @action(detail=False, methods=["POST"], serializer_class=HostSerializer)
+    @action(detail=False, methods=["POST"], serializer_class=HostSearchSerializer)
     def search(self, request):
         """
         @api {POST} /host/search/ 查询主机列表
