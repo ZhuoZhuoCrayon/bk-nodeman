@@ -9,13 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-import random
-import string
 
 from django.conf import settings
 from django.http import Http404, JsonResponse
 from django.utils.translation import ugettext as _
-from drf_yasg.inspectors import InlineSerializerInspector
 from rest_framework import exceptions, filters, status
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.response import Response
@@ -103,8 +100,21 @@ class Meta(object):
     pass
 
 
-class APIViewSet(ApiMixin, ValidationMixin, GenericViewSet, InlineSerializerInspector):
-    pass
+class APIViewSet(ApiMixin, ValidationMixin, GenericViewSet):
+    def get_serializer_class(self, *args, **kwargs):
+        if self.serializer_class is None:
+            return super().get_serializer_class()
+        return type(
+            self.serializer_class.__name__,
+            (self.serializer_class,),
+            {
+                "Meta": type(
+                    "Meta",
+                    (Meta,),
+                    {"ref_name": f"{self.serializer_class.__module__}.{self.serializer_class.__name__}"},
+                )
+            },
+        )
 
 
 class ModelViewSet(ApiMixin, ValidationMixin, _ModelViewSet):
@@ -139,23 +149,16 @@ class ModelViewSet(ApiMixin, ValidationMixin, _ModelViewSet):
     def get_serializer_class(self, *args, **kwargs):
         self.serializer_meta.model = self.model
         self.serializer_meta.fields = "__all__"
-        self.serializer_meta.ref_name = "".join(
-            random.choice(string.ascii_uppercase + string.digits) for _ in range(10)
-        )
         if isinstance(self.serializer_class, GeneralSerializer) or self.serializer_class is None:
+            self.serializer_meta.ref_name = "GeneralSerializer{}".format(self.model.__name__)
             return type(
                 "GeneralSerializer{}".format(self.model.__name__),
                 (GeneralSerializer,),
                 {"Meta": self.serializer_meta},
             )
-        elif not hasattr(self.serializer_class, "ref_name"):
-            return type(
-                "Serializer{}".format(self.serializer_class.__name__),
-                (self.serializer_class,),
-                {"Meta": self.serializer_meta},
-            )
         else:
-            return self.serializer_class
+            self.serializer_meta.ref_name = f"{self.serializer_class.__module__}.{self.serializer_class.__name__}"
+            return type(self.serializer_class.__name__, (self.serializer_class,), {"Meta": self.serializer_meta})
 
 
 def custom_exception_handler(exc, context):

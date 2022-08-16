@@ -16,7 +16,7 @@ from apps.node_man import constants, tools
 from apps.utils import basic
 
 
-class HostSerializer(serializers.Serializer):
+class HostSearchSerializer(serializers.Serializer):
     bk_biz_id = serializers.ListField(label=_("业务ID"), required=False, child=serializers.IntegerField())
     bk_host_id = serializers.ListField(label=_("主机ID"), required=False, child=serializers.IntegerField())
     bk_cloud_id = serializers.ListField(label=_("云区域ID"), required=False, child=serializers.IntegerField())
