@@ -594,15 +594,17 @@ class PluginStep(Step):
         :param instances:
         :return:
         """
+        host_id__instance_id_map: Dict[int, str] = {}
         gse_version__host_info_list_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-        host_id__instance_id_map: Dict[int, Dict] = {}
         gse_version__bk_host_id__host_map: Dict[str, Dict[int, models.Host]] = defaultdict(dict)
+
         for instance_id, instance in instances.items():
             bk_host_id = instance["host"].get("bk_host_id")
             # dict in 是近似 O(1) 的操作复杂度：https://stackoverflow.com/questions/17539367/
             if bk_host_id not in bk_host_id__host_map:
                 # 忽略未同步主机
                 continue
+
             host_obj = bk_host_id__host_map[bk_host_id]
             gse_version__host_info_list_map[instance["meta"]["GSE_VERSION"]].append(
                 {
@@ -627,11 +629,11 @@ class PluginStep(Step):
                     extra_meta_data={},
                 )
             )
-
         logger.info(f"agent_id__readable_proc_status_map -> {agent_id__readable_proc_status_map}")
 
         for gse_version, _bk_host_id__host_map in gse_version__bk_host_id__host_map.items():
             gse_api_helper = get_gse_api_helper(gse_version)
+
             for bk_host_id, host_obj in _bk_host_id__host_map.items():
                 agent_id: str = gse_api_helper.get_agent_id(host_obj)
                 instance_id: str = host_id__instance_id_map[bk_host_id]
@@ -650,7 +652,6 @@ class PluginStep(Step):
                     "current_version": proc_status["version"],
                     "target_version": self.get_matching_pkg_real_version(host_obj.os_type, host_obj.cpu_arch),
                 }
-
                 if base_reason_info["status"] != constants.ProcStateType.RUNNING:
                     # 插件状态异常时进行重装
                     instance_actions[host_id__instance_id_map[bk_host_id]] = install_action
@@ -678,6 +679,7 @@ class PluginStep(Step):
         """
         if self.subscription_step.subscription_id in [None, -1]:
             return models.ProcessStatus.objects.none()
+
         # 默认仅查出需要使用的非 JSON 字段
         # 此处不考虑用 only，only 隐式仅加载某些字段，容易在引用对象处造成 n+1 查询
         statuses = models.ProcessStatus.objects.filter(

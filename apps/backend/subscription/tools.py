@@ -876,14 +876,17 @@ def get_instances_by_scope(scope: Dict[str, Union[Dict, int, Any]]) -> Dict[str,
         "host|instance|host|yyyy": {...},
     }
     """
-    instance_selector = scope.get("instance_selector")
+    instance_selector: typing.Optional[typing.List] = scope.get("instance_selector")
     # 不进行主机筛选时传入 None，传入空列表则识别为全部过滤
     if instance_selector == []:
         return {}
 
     instances = []
     bk_biz_id = scope["bk_biz_id"]
-    if bk_biz_id:
+    if bk_biz_id and (
+        scope["object_type"] == models.Subscription.ObjectType.SERVICE
+        or scope["node_type"] != models.Subscription.NodeType.INSTANCE
+    ):
         module_to_topo = get_module_to_topo_dict(bk_biz_id)
     else:
         module_to_topo = {}
@@ -910,6 +913,7 @@ def get_instances_by_scope(scope: Dict[str, Union[Dict, int, Any]]) -> Dict[str,
             instances.extend(
                 [
                     {"host": inst}
+                    # TODO 优化
                     for inst in get_host_detail(nodes, bk_biz_id=bk_biz_id, source="get_instances_by_scope")
                 ]
             )
@@ -973,14 +977,12 @@ def get_instances_by_scope(scope: Dict[str, Union[Dict, int, Any]]) -> Dict[str,
         if scope["with_info"]["process"]:
             add_process_info_to_instances(bk_biz_id, scope, instances)
 
+    bk_host_ids = []
     instances_dict = {}
     data = {
         "object_type": scope["object_type"],
         "node_type": models.Subscription.NodeType.INSTANCE,
     }
-
-    bk_host_ids = []
-
     for instance in instances:
         is_host = data["object_type"] == models.Subscription.ObjectType.HOST
         instance_data = instance["host"] if is_host else instance["service"]

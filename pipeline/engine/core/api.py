@@ -56,7 +56,7 @@ def workers(connection=None):
         logger.exception("pipeline cache_for __pipeline__workers__ raise error: %s" % e)
         raise e
 
-    logger.exception(f"worker_list from cache -> {worker_list}")
+    # logger.exception(f"worker_list from cache -> {worker_list}")
 
     if worker_list:
         return worker_list
@@ -69,8 +69,6 @@ def workers(connection=None):
             kwargs["connection"] = connection
         try:
             worker_list = current_app.control.ping(**kwargs)
-            logger.exception(f"current_app -> {current_app}, id -> {id(current_app)}")
-            logger.exception(f"worker_list after ping -> {worker_list}")
         except socket.error as err:
             logger.exception("pipeline current_app.control.ping raise error: %s" % err)
             # raise error at last loop

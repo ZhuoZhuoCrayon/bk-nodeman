@@ -24,7 +24,6 @@ from django.utils.translation import ugettext as _
 
 from apps.backend.subscription import errors, task_tools, tasks, tools
 from apps.backend.subscription.errors import InstanceTaskIsRunning
-from apps.backend.utils.pipeline_parser import PipelineParser
 from apps.core.concurrent import controller
 from apps.node_man import constants, models
 from apps.utils import concurrent
@@ -407,17 +406,8 @@ class SubscriptionHandler(object):
 
         # 选取指定 subscription_id & task_id_list范围下最新的instance_record
         instance_record = models.SubscriptionInstanceRecord.objects.filter(**filter_kwargs).order_by("-id").first()
-
         if not instance_record:
             raise errors.SubscriptionInstanceRecordNotExist()
-
-        # 兼容Agent任务通过改造前逻辑获取任务状态
-        if not instance_record.subscription_task.pipeline_id:
-            pipeline_parser = PipelineParser([instance_record.pipeline_id])
-            instance_status = tools.get_subscription_task_instance_status(
-                instance_record, pipeline_parser, need_detail=True
-            )
-            return instance_status
 
         instance_status_list = task_tools.TaskResultTools.list_subscription_task_instance_status(
             instance_records=[instance_record], need_detail=True

@@ -181,7 +181,7 @@ class JobTools:
                 job.status = constants.JobStatusType.FAILED
             else:
                 job.status = constants.JobStatusType.PART_FAILED
-        elif statistics["running_count"]:
+        elif statistics["running_count"] or statistics["pending_count"]:
             job.status = constants.JobStatusType.RUNNING
 
         # 任务已完成，需要更新end_time

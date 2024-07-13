@@ -74,6 +74,9 @@ class GrayTools:
         :param instances:
         :return:
         """
+        if not instances:
+            return
+
         bk_host_ids: typing.Set[int] = {
             instance_info["host"]["bk_host_id"]
             for instance_info in instances.values()

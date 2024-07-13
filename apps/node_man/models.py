@@ -1786,9 +1786,6 @@ class SubscriptionStep(models.Model):
 
     @subscription.setter
     def subscription(self, value):
-        # if self.subscription_id != value.id:
-        #     self.subscription_id = value.id
-        #     self.save()
         self._subscription = value
 
     class Meta:
@@ -1936,9 +1933,7 @@ class Subscription(export_subscription_prometheus_mixin(), orm.SoftDeleteModel):
         return False
 
     def is_need_realtime(self):
-        if self.category == self.CategoryType.ONCE:
-            return True
-        return False
+        return self.category == self.CategoryType.ONCE
 
     @classmethod
     def get_host_id__bk_obj_sub_map(
@@ -1979,6 +1974,15 @@ class Subscription(export_subscription_prometheus_mixin(), orm.SoftDeleteModel):
                 }
             )
         return host_id__bk_obj_sub_map
+
+    def need_suppression_check(self, action: str) -> bool:
+        # 非策略、非一次性订阅任务的其他订阅无需考虑抑制情况，是否校验其他订阅存在部署主配置的情况等待讨论
+        if not self.category:
+            return False
+
+        # 一次性订阅仅 「安装 / 更新插件」（Action相同）需要计算抑制关系，其他动作允许策略中豁免
+        if self.category == self.CategoryType.ONCE and action not in [constants.JobType.MAIN_INSTALL_PLUGIN]:
+            return False
 
     def check_is_suppressed(
         self,
@@ -2112,12 +2116,7 @@ class Subscription(export_subscription_prometheus_mixin(), orm.SoftDeleteModel):
                 },
             }
 
-        # TODO 非策略、非一次性订阅任务的其他订阅无需考虑抑制情况，是否校验其他订阅存在部署主配置的情况等待讨论
-        if not self.category:
-            return _construct_return_data(_is_suppressed=False)
-
-        # 一次性订阅仅 「安装 / 更新插件」（Action相同）需要计算抑制关系，其他动作允许策略中豁免
-        if self.category == self.CategoryType.ONCE and action not in [constants.JobType.MAIN_INSTALL_PLUGIN]:
+        if not self.need_suppression_check(action):
             return _construct_return_data(_is_suppressed=False)
 
         # 获取订阅实例目标匹配的拓扑层级
@@ -2233,12 +2232,6 @@ class SubscriptionInstanceRecord(models.Model):
     )
 
     @property
-    def subscription_task(self):
-        if not hasattr(self, "_subscription_task"):
-            self._subscription_task = SubscriptionTask.objects.get(id=self.task_id)
-        return self._subscription_task
-
-    @property
     def subscription(self):
         if not hasattr(self, "_subscription"):
             self._subscription = Subscription.objects.get(id=self.subscription_id)
@@ -2250,18 +2243,6 @@ class SubscriptionInstanceRecord(models.Model):
             self.subscription_id = value.id
             self.save()
         self._subscription = value
-
-    def save_pipeline(self, pipeline_id, pipeline_tree):
-        """
-        设置pipeline属性
-        """
-        PipelineTree.objects.update_or_create(id=pipeline_id, defaults={"tree": pipeline_tree})
-        self.pipeline_id = pipeline_id
-        self.save()
-
-    def run_pipeline(self):
-        pipeline_tree = PipelineTree.objects.get(id=self.pipeline_id)
-        pipeline_tree.run()
 
     def init_steps(self):
         """
@@ -2289,30 +2270,6 @@ class SubscriptionInstanceRecord(models.Model):
         for step in self.steps:
             if step["id"] == step_id:
                 return step
-        raise KeyError(_("步骤ID [{}] 在该订阅配置中不存在").format(step_id))
-
-    def set_step_data(self, step_id, data):
-        """
-        根据 step_id 设置步骤数据
-        """
-        if not self.steps:
-            self.init_steps()
-
-        # 不允许修改 id 和 type
-        data.pop("id", None)
-        data.pop("type", None)
-
-        steps = copy.deepcopy(self.steps)
-
-        for step in steps:
-            if step["id"] != step_id:
-                continue
-
-            # 更新步骤数据，保存
-            step.update(data)
-            self.steps = steps
-            return
-
         raise KeyError(_("步骤ID [{}] 在该订阅配置中不存在").format(step_id))
 
     def simple_instance_info(self):

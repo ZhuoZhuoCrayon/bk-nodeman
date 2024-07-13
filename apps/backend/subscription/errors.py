@@ -169,3 +169,9 @@ class SubscriptionIncludeGrayBizError(AppBaseException):
     ERROR_CODE = 19
     MESSAGE = _("订阅任务包含Gse2.0灰度业务，任务将暂缓执行无需重复点击")
     MESSAGE_TPL = _("订阅任务包含Gse2.0灰度业务，任务将暂缓执行无需重复点击")
+
+
+class SubscriptionInstanceCountMismatchError(AppBaseException):
+    ERROR_CODE = 20
+    MESSAGE = _("订阅实例数量不匹配")
+    MESSAGE_TPL = _("订阅实例数量不匹配")
